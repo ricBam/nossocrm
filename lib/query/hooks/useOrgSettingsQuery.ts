@@ -19,15 +19,19 @@ export interface OrgAISettings {
   aiGoogleKey: string;
   aiOpenaiKey: string;
   aiAnthropicKey: string;
+  aiOpenrouterKey: string;
   aiHasGoogleKey?: boolean;
   aiHasOpenaiKey?: boolean;
   aiHasAnthropicKey?: boolean;
+  aiHasOpenrouterKey?: boolean;
 }
 
 export interface MergedOrgSettings extends UserSettings {
   // Org-level AI overrides/additions
   aiOrgEnabled: boolean;
   aiKeyConfigured: boolean;
+  aiOpenrouterKey: string;
+  aiHasOpenrouterKey: boolean;
 }
 
 // ============ QUERY HOOKS ============
@@ -68,17 +72,21 @@ export const useOrgSettings = (options?: { enabled?: boolean }) => {
         onboardingCompleted: false,
       };
 
-      const aiKeyConfigured =
-        !!(aiData.aiGoogleKey) || !!(aiData.aiHasGoogleKey);
+      const aiProvider = aiData.aiProvider || 'google';
+      const aiKeyConfigured = aiProvider === 'openrouter'
+        ? !!(aiData.aiOpenrouterKey) || !!(aiData.aiHasOpenrouterKey)
+        : !!(aiData.aiGoogleKey) || !!(aiData.aiHasGoogleKey);
 
       return {
         ...base,
-        aiProvider: 'google' as const,
+        aiProvider,
         aiModel: aiData.aiModel || base.aiModel,
         aiGoogleKey: aiData.aiGoogleKey || base.aiGoogleKey,
         // Merged extras
         aiOrgEnabled: aiData.aiEnabled ?? false,
         aiKeyConfigured,
+        aiOpenrouterKey: aiData.aiOpenrouterKey || '',
+        aiHasOpenrouterKey: !!aiData.aiHasOpenrouterKey,
       };
     },
     staleTime: 5 * 60 * 1000,

@@ -4,13 +4,11 @@
 import { streamText, tool, UIMessage, convertToModelMessages, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { getModel } from '@/lib/ai/config';
+import { getModel, resolveProviderAndKey } from '@/lib/ai/config';
 import { AI_DEFAULT_MODELS } from '@/lib/ai/defaults';
 import { isAllowedOrigin } from '@/lib/security/sameOrigin';
 
 export const maxDuration = 60;
-
-type AIProvider = 'google';
 
 /**
  * Handler HTTP `POST` deste endpoint (Next.js Route Handler).
@@ -58,7 +56,7 @@ export async function POST(req: Request) {
     // 4. Get AI settings from org
     const { data: orgSettings } = await supabase
         .from('organization_settings')
-        .select('ai_enabled, ai_provider, ai_model, ai_google_key')
+        .select('ai_enabled, ai_provider, ai_model, ai_google_key, ai_openrouter_key')
         .eq('organization_id', organizationId)
         .maybeSingle();
 
@@ -73,19 +71,18 @@ export async function POST(req: Request) {
         );
     }
 
-    const provider: AIProvider = 'google';
     const modelId: string | null = orgSettings?.ai_model ?? null;
-    const apiKey: string | null = orgSettings?.ai_google_key ?? null;
+    const { provider, apiKey } = resolveProviderAndKey(orgSettings);
 
     if (!apiKey) {
+        const providerLabel = provider === 'openrouter' ? 'OpenRouter' : 'Google Gemini';
         return new Response(
-            'API key não configurada para Google Gemini. Configure em Configurações → Inteligência Artificial.',
+            `API key não configurada para ${providerLabel}. Configure em Configurações → Inteligência Artificial.`,
             { status: 400 }
         );
     }
 
-    const resolvedModelId =
-        modelId || AI_DEFAULT_MODELS[provider as keyof typeof AI_DEFAULT_MODELS] || AI_DEFAULT_MODELS.google;
+    const resolvedModelId = modelId || AI_DEFAULT_MODELS[provider];
 
     const model = getModel(provider, apiKey, resolvedModelId);
 

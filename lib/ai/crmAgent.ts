@@ -1,11 +1,9 @@
 import { ToolLoopAgent, stepCountIs } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { CRMCallOptionsSchema, type CRMCallOptions } from '@/types/ai';
 import { createCRMTools } from './tools';
 import { formatPriorityPtBr } from '@/lib/utils/priority';
 import { AI_DEFAULT_MODELS, AI_DEFAULT_PROVIDER } from './defaults';
-
-type AIProvider = 'google';
+import { getModel, type AIProvider } from './config';
 
 function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -218,8 +216,9 @@ APRESENTAÇÃO (MUITO IMPORTANTE):
  * 
  * @param context - Type-safe context from the request
  * @param userId - Current user ID
- * @param apiKey - Google AI API key from organization_settings
+ * @param apiKey - API key do provedor configurado, vinda de organization_settings
  * @param modelId - Model to use (default from AI_DEFAULT_MODELS)
+ * @param provider - AI provider ('google' or 'openrouter'), default from AI_DEFAULT_PROVIDER
  */
 export async function createCRMAgent(
     context: CRMCallOptions,
@@ -237,8 +236,7 @@ export async function createCRMAgent(
         provider,
     });
 
-    const google = createGoogleGenerativeAI({ apiKey });
-    const model = google(modelId);
+    const model = getModel(provider, apiKey, modelId);
 
     // Create tools with context injected
     const tools = createCRMTools(context, userId);

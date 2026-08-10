@@ -18,7 +18,7 @@ import { isAllowedOrigin } from '@/lib/security/sameOrigin';
 export interface AIModelInfo {
   id: string;
   name: string;
-  provider: 'google';
+  provider: 'google' | 'openrouter';
   /** true = alias auto-atualizado (ex: gemini-flash-latest) */
   isAlias: boolean;
 }
@@ -88,6 +88,26 @@ async function fetchGoogleModels(apiKey: string): Promise<AIModelInfo[]> {
   return [...aliases, ...pinned];
 }
 
+/**
+ * Lista o catálogo de modelos da OpenRouter. Endpoint público (não exige
+ * chave de API) — ver https://openrouter.ai/api/v1/models.
+ */
+async function fetchOpenRouterModels(): Promise<AIModelInfo[]> {
+  const res = await fetch('https://openrouter.ai/api/v1/models');
+  if (!res.ok) throw new Error(`OpenRouter API error: HTTP ${res.status}`);
+
+  const data = (await res.json()) as { data?: Array<{ id: string; name?: string }> };
+
+  return (data.data ?? [])
+    .map((m) => ({
+      id: m.id,
+      name: m.name || m.id,
+      provider: 'openrouter' as const,
+      isAlias: false,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // =============================================================================
 // GET /api/ai/models
 // =============================================================================
@@ -116,15 +136,32 @@ export async function GET(request: NextRequest) {
 
   const { data: settings, error: settingsError } = await supabase
     .from('organization_settings')
-    .select('ai_google_key')
+    .select('ai_provider, ai_google_key')
     .eq('organization_id', profile.organization_id)
     .maybeSingle();
 
-  if (settingsError || !settings?.ai_google_key) {
+  if (settingsError) {
     return json({ models: [] });
   }
 
+  // Permite o front pedir explicitamente o catálogo de um provedor (útil ao
+  // trocar de provedor na tela de configurações antes de salvar), com
+  // fallback para o provedor já salvo na organização.
+  const requestedProvider = request.nextUrl.searchParams.get('provider');
+  const provider = requestedProvider === 'openrouter' || requestedProvider === 'google'
+    ? requestedProvider
+    : (settings?.ai_provider === 'openrouter' ? 'openrouter' : 'google');
+
   try {
+    if (provider === 'openrouter') {
+      // Catálogo público — não depende da chave estar configurada/salva ainda.
+      const models = await fetchOpenRouterModels();
+      return json({ models });
+    }
+
+    if (!settings?.ai_google_key) {
+      return json({ models: [] });
+    }
     const models = await fetchGoogleModels(settings.ai_google_key);
     return json({ models });
   } catch (error) {

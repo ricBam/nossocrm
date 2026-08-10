@@ -22,7 +22,7 @@ export interface UseAIEnabledResult {
   /** A API Key configurada */
   apiKey: string | null;
   /** Provider configurado */
-  provider: 'google';
+  provider: string;
   /** Navega para as configurações de IA */
   goToSettings: () => void;
 }

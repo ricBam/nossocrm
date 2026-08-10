@@ -35,7 +35,7 @@ export interface DbLifecycleStage {
 }
 
 export interface UserSettings {
-  aiProvider: 'google';
+  aiProvider: string;
   aiApiKey: string;
   aiGoogleKey: string;
   aiModel: string;

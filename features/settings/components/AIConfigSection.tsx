@@ -5,8 +5,10 @@ import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import type { AIModelInfo } from '@/app/api/ai/models/route';
 
+type AIProviderId = 'google' | 'openrouter';
+
 // Função para validar API key Gemini fazendo uma chamada real à API
-async function validateApiKey(apiKey: string, model: string): Promise<{ valid: boolean; error?: string }> {
+async function validateGoogleApiKey(apiKey: string, model: string): Promise<{ valid: boolean; error?: string }> {
     if (!apiKey || apiKey.trim().length < 10) {
         return { valid: false, error: 'Chave muito curta' };
     }
@@ -42,6 +44,39 @@ async function validateApiKey(apiKey: string, model: string): Promise<{ valid: b
     }
 }
 
+// Valida a API key da OpenRouter via GET /api/v1/key (metadado da chave — não consome créditos)
+async function validateOpenRouterApiKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
+    if (!apiKey || apiKey.trim().length < 10) {
+        return { valid: false, error: 'Chave muito curta' };
+    }
+
+    try {
+        const response = await fetch('https://openrouter.ai/api/v1/key', {
+            headers: { Authorization: `Bearer ${apiKey}` },
+        });
+
+        if (response.ok) return { valid: true };
+        if (response.status === 401) {
+            return { valid: false, error: 'Chave de API inválida' };
+        }
+
+        const error = await response.json().catch(() => null);
+        return { valid: false, error: error?.error?.message || `Erro HTTP ${response.status}` };
+    } catch {
+        return { valid: false, error: 'Erro de conexão. Verifique sua internet.' };
+    }
+}
+
+async function validateApiKey(
+    provider: AIProviderId,
+    apiKey: string,
+    model: string
+): Promise<{ valid: boolean; error?: string }> {
+    return provider === 'openrouter'
+        ? validateOpenRouterApiKey(apiKey)
+        : validateGoogleApiKey(apiKey, model);
+}
+
 
 /**
  * Componente React `AIConfigSection`.
@@ -55,12 +90,22 @@ export const AIConfigSection: React.FC = () => {
     const updateAISettings = useUpdateAISettings();
     const updateUserSettings = useUpdateUserSettings();
 
-    // Derived values from TanStack Query data
+    const { showToast } = useToast();
+
+    // Provider: pode ter sido trocado localmente (otimista) antes do refetch confirmar.
+    const savedProvider: AIProviderId = orgSettings?.aiProvider === 'openrouter' ? 'openrouter' : 'google';
+    const [localProvider, setLocalProvider] = useState<AIProviderId | null>(null);
+    const aiProvider: AIProviderId = localProvider ?? savedProvider;
+    const providerLabel = aiProvider === 'openrouter' ? 'OpenRouter' : 'Google Gemini';
+
+    // Derived values from TanStack Query data (dependem do provedor ativo)
     const aiModel = orgSettings?.aiModel ?? '';
     const aiKeyConfigured = orgSettings?.aiKeyConfigured ?? false;
     const aiThinking = orgSettings?.aiThinking ?? true;
     const aiSearch = orgSettings?.aiSearch ?? true;
-    const aiApiKey = orgSettings?.aiGoogleKey ?? '';
+    const aiApiKey = aiProvider === 'openrouter'
+        ? (orgSettings?.aiOpenrouterKey ?? '')
+        : (orgSettings?.aiGoogleKey ?? '');
 
     const [localModel, setLocalModel] = useState<string | null>(null);
 
@@ -68,10 +113,10 @@ export const AIConfigSection: React.FC = () => {
     const [dynamicModels, setDynamicModels] = useState<AIModelInfo[]>([]);
     const [modelsLoading, setModelsLoading] = useState(false);
 
-    const fetchModels = useCallback(async () => {
+    const fetchModels = useCallback(async (provider: AIProviderId) => {
         setModelsLoading(true);
         try {
-            const res = await fetch('/api/ai/models');
+            const res = await fetch(`/api/ai/models?provider=${provider}`);
             if (res.ok) {
                 const data = await res.json() as { models?: AIModelInfo[] };
                 setDynamicModels(data.models ?? []);
@@ -84,7 +129,11 @@ export const AIConfigSection: React.FC = () => {
     }, []);
 
     const setAiApiKey = async (key: string) => {
-        await updateAISettings.mutateAsync({ aiGoogleKey: key });
+        if (aiProvider === 'openrouter') {
+            await updateAISettings.mutateAsync({ aiOpenrouterKey: key });
+        } else {
+            await updateAISettings.mutateAsync({ aiGoogleKey: key });
+        }
     };
     const setAiModel = async (model: string) => {
         await updateAISettings.mutateAsync({ aiModel: model });
@@ -96,7 +145,18 @@ export const AIConfigSection: React.FC = () => {
         await updateUserSettings.mutateAsync({ aiSearch: enabled });
     };
 
-    const { showToast } = useToast();
+    const handleProviderChange = async (next: AIProviderId) => {
+        if (next === aiProvider) return;
+        setLocalProvider(next);
+        setLocalModel(null);
+        try {
+            await updateAISettings.mutateAsync({ aiProvider: next });
+            showToast(`Provedor alterado para ${next === 'openrouter' ? 'OpenRouter' : 'Google Gemini'}`, 'success');
+        } catch (err) {
+            setLocalProvider(null);
+            showToast(err instanceof Error ? err.message : 'Falha ao atualizar provedor', 'error');
+        }
+    };
 
     // Estado local para o input da key (não salva até validar)
     const [localApiKey, setLocalApiKey] = useState(aiApiKey);
@@ -137,7 +197,7 @@ export const AIConfigSection: React.FC = () => {
         setIsValidating(true);
         setValidationError(null);
 
-        const result = await validateApiKey(localApiKey, aiModel);
+        const result = await validateApiKey(aiProvider, localApiKey, aiModel);
 
         setIsValidating(false);
 
@@ -173,12 +233,16 @@ export const AIConfigSection: React.FC = () => {
     const hasUnsavedChanges = localApiKey !== aiApiKey;
 
     useEffect(() => {
-        if (aiKeyConfigured) {
-            void fetchModels();
+        // OpenRouter expõe o catálogo publicamente (não exige chave configurada);
+        // Google exige a chave configurada, já que a lista vem da própria API do Gemini.
+        if (aiProvider === 'openrouter') {
+            void fetchModels('openrouter');
+        } else if (aiApiKey) {
+            void fetchModels('google');
         } else {
             setDynamicModels([]);
         }
-    }, [aiKeyConfigured, fetchModels]);
+    }, [aiProvider, aiApiKey, fetchModels]);
 
     const isCatalogModel = dynamicModels.some(m => m.id === aiModel);
 
@@ -203,7 +267,7 @@ export const AIConfigSection: React.FC = () => {
                             <span className="font-semibold">Status:</span> Configurado pela organização
                         </div>
                         <div className="text-sm text-slate-700 dark:text-slate-200 mt-1">
-                            <span className="font-semibold">Provedor:</span> Google Gemini
+                            <span className="font-semibold">Provedor:</span> {providerLabel}
                         </div>
                         <div className="text-sm text-slate-700 dark:text-slate-200 mt-1">
                             <span className="font-semibold">Modelo:</span> {aiModel}
@@ -218,16 +282,43 @@ export const AIConfigSection: React.FC = () => {
                 {!isAdmin ? null : (
                     <>
 
+                {/* Provider Selection */}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <Bot size={14} /> Provedor de IA
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(['google', 'openrouter'] as const).map((p) => (
+                            <button
+                                key={p}
+                                type="button"
+                                onClick={() => handleProviderChange(p)}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all text-left ${aiProvider === p
+                                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                                        : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-purple-300'
+                                    }`}
+                            >
+                                {p === 'google' ? 'Google Gemini' : 'OpenRouter'}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {aiProvider === 'openrouter'
+                            ? 'Acesse centenas de modelos (Claude, GPT, Llama e outros) com uma única chave da OpenRouter.'
+                            : 'Usa a API nativa do Google Gemini com sua própria chave.'}
+                    </p>
+                </div>
+
                 {/* Model Selection */}
                 <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
                         <label htmlFor="ai-model-select" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                             <Bot size={14} /> Modelo
                             {modelsLoading && <Loader2 size={12} className="animate-spin text-purple-500" />}
-                            {!modelsLoading && aiKeyConfigured && (
+                            {!modelsLoading && (aiProvider === 'openrouter' || aiApiKey) && (
                                 <button
                                     type="button"
-                                    onClick={() => fetchModels()}
+                                    onClick={() => fetchModels(aiProvider)}
                                     className="ml-auto text-slate-400 hover:text-purple-500 transition-colors"
                                     title="Recarregar modelos"
                                 >
@@ -256,7 +347,11 @@ export const AIConfigSection: React.FC = () => {
                             >
                                 {dynamicModels.length === 0 ? (
                                     <option value="" disabled>
-                                        {modelsLoading ? 'Carregando...' : aiKeyConfigured ? 'Nenhum modelo encontrado' : 'Configure a chave de API primeiro'}
+                                        {modelsLoading
+                                            ? 'Carregando...'
+                                            : aiProvider === 'openrouter' || aiApiKey
+                                                ? 'Nenhum modelo encontrado'
+                                                : 'Configure a chave de API primeiro'}
                                     </option>
                                 ) : (
                                     <>
@@ -276,8 +371,8 @@ export const AIConfigSection: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Google Thinking Config */}
-                {(
+                {/* Google Thinking Config — feature específica da API nativa do Gemini */}
+                {aiProvider === 'google' && (
                     <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-500/20 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center justify-between">
                             <div>
@@ -302,8 +397,8 @@ export const AIConfigSection: React.FC = () => {
                     </div>
                 )}
 
-                {/* Search Config */}
-                {(
+                {/* Search Config — feature específica da API nativa do Gemini */}
+                {aiProvider === 'google' && (
                     <div className="bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-500/20 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center justify-between">
                             <div>
@@ -331,7 +426,7 @@ export const AIConfigSection: React.FC = () => {
                 {/* API Key */}
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <Key size={14} /> Chave de API (Google Gemini)
+                        <Key size={14} /> Chave de API ({providerLabel})
                     </label>
                     <div className="flex gap-2">
                         <div className="relative flex-1">
@@ -339,7 +434,7 @@ export const AIConfigSection: React.FC = () => {
                                 type="password"
                                 value={localApiKey}
                                 onChange={(e) => handleKeyChange(e.target.value)}
-                                placeholder="Cole sua chave AIza..."
+                                placeholder={aiProvider === 'openrouter' ? 'Cole sua chave sk-or-...' : 'Cole sua chave AIza...'}
                                 className={`w-full bg-slate-50 dark:bg-slate-800 border rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all font-mono ${validationStatus === 'invalid'
                                         ? 'border-red-300 dark:border-red-500/50'
                                         : validationStatus === 'valid'
@@ -437,7 +532,7 @@ export const AIConfigSection: React.FC = () => {
                                 <div className="pt-2 border-t border-amber-200 dark:border-amber-500/20">
                                     <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
                                         <strong>Base legal:</strong> Consentimento do titular (Art. 7º, I e Art. 11, I da LGPD).
-                                        Seus dados são enviados diretamente ao Google Gemini.
+                                        Seus dados são enviados diretamente ao provedor configurado ({providerLabel}).
                                         Nós não armazenamos ou intermediamos essas comunicações.
                                     </p>
                                 </div>
@@ -475,7 +570,7 @@ export const AIConfigSection: React.FC = () => {
                         </p>
                         <p className="opacity-90 mt-1">
                             {validationStatus === 'valid' && localApiKey
-                                ? `O sistema está configurado para usar o Google Gemini (${aiModel}).`
+                                ? `O sistema está configurado para usar ${providerLabel} (${aiModel}).`
                                 : validationStatus === 'invalid'
                                     ? 'Verifique sua chave de API e tente novamente.'
                                     : 'Insira uma chave de API válida e clique em Salvar para usar o assistente.'}

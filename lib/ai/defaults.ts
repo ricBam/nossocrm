@@ -5,6 +5,7 @@
  */
 export const AI_DEFAULT_MODELS = {
   google: 'gemini-2.0-flash',
+  openrouter: 'openai/gpt-4o-mini',
 } as const;
 
 export const AI_DEFAULT_PROVIDER = 'google' as const;
