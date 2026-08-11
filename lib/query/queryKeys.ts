@@ -38,6 +38,11 @@ export const queryKeys = {
         byDeal: (dealId: string) => [...base.all, 'deal', dealId] as const,
     })),
 
+    // Activity checklist items (Central de Tarefas)
+    activityChecklist: {
+        byActivity: (activityId: string) => ['activityChecklist', activityId] as const,
+    },
+
     // Dashboard (non-standard structure)
     dashboard: {
         stats: ['dashboard', 'stats'] as const,

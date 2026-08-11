@@ -6,6 +6,7 @@ export { boardsService, boardStagesService } from './supabase/boards';
 export { contactsService, companiesService } from './supabase/contacts';
 export { dealsService } from './supabase/deals';
 export { activitiesService } from './supabase/activities';
+export { activityChecklistItemsService } from './supabase/activityChecklistItems';
 export { productsService } from './supabase/products';
 export { settingsService, lifecycleStagesService } from './supabase/settings';
 

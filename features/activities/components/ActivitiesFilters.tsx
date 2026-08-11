@@ -1,12 +1,21 @@
 import React from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, LayoutList, LayoutGrid } from 'lucide-react';
 import { Activity } from '@/types';
+import type { ListLayout } from './ActivitiesList';
 
 interface ActivitiesFiltersProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   filterType: Activity['type'] | 'ALL';
   setFilterType: (type: Activity['type'] | 'ALL') => void;
+  /**
+   * Toggle Lista/Blocos (Pedido do fundador, 2026-08-11) — formato de
+   * renderização dentro da própria visão Lista, não uma visão nova. `undefined`
+   * omite o toggle (ex: quando o componente for usado fora do contexto que
+   * suporta os dois formatos).
+   */
+  listLayout?: ListLayout;
+  setListLayout?: (layout: ListLayout) => void;
 }
 
 /**
@@ -30,6 +39,8 @@ export const ActivitiesFilters: React.FC<ActivitiesFiltersProps> = ({
   setSearchTerm,
   filterType,
   setFilterType,
+  listLayout,
+  setListLayout,
 }) => {
   return (
     <div className="flex gap-4 mb-6">
@@ -57,6 +68,34 @@ export const ActivitiesFilters: React.FC<ActivitiesFiltersProps> = ({
           <option value="TASK">Tarefas</option>
         </select>
       </div>
+      {listLayout && setListLayout && (
+        <div className="flex bg-white dark:bg-dark-card p-1 rounded-lg border border-slate-200 dark:border-white/10">
+          <button
+            type="button"
+            onClick={() => setListLayout('rows')}
+            title="Lista"
+            className={`p-2 rounded-md transition-all ${
+              listLayout === 'rows'
+                ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <LayoutList size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setListLayout('blocks')}
+            title="Blocos"
+            className={`p-2 rounded-md transition-all ${
+              listLayout === 'blocks'
+                ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <LayoutGrid size={20} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

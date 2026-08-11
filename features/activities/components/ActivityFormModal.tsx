@@ -1,6 +1,8 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { Activity, Deal } from '@/types';
+import { Activity, ActivityPriority, ActivityStatus, Deal, TimeSphere } from '@/types';
+import { ActivityChecklistSection } from './ActivityChecklistSection';
+import { STATUS_OPTIONS, PRIORITY_OPTIONS, TIME_SPHERE_OPTIONS } from '../activityOptions';
 
 interface ActivityFormData {
   title: string;
@@ -9,6 +11,9 @@ interface ActivityFormData {
   time: string;
   description: string;
   dealId: string;
+  status: ActivityStatus;
+  priority: ActivityPriority;
+  timeSphere: TimeSphere | undefined;
 }
 
 interface ActivityFormModalProps {
@@ -121,12 +126,15 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
                 Negócio Relacionado
               </label>
               <select
-                required={!editingActivity}
                 className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
                 value={formData.dealId}
                 onChange={e => setFormData({ ...formData, dealId: e.target.value })}
               >
-                <option value="">Selecione...</option>
+                {/* Opcional: "tarefa solta" (sem negócio/contato vinculado) é um caso de
+                    uso central da Central de Tarefas (Fase 1) — `deal_id`/`contact_id`
+                    já são nullable no banco (ver docs/plano-central-de-tarefas.md, 1.1).
+                    Nunca marcar este campo como `required`. */}
+                <option value="">Nenhum (tarefa solta)</option>
                 {deals.map(deal => (
                   <option key={deal.id} value={deal.id}>
                     {deal.title}
@@ -170,6 +178,66 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
               onChange={e => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+              <select
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
+                value={formData.status}
+                onChange={e =>
+                  setFormData({ ...formData, status: e.target.value as ActivityStatus })
+                }
+              >
+                {STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Prioridade
+              </label>
+              <select
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
+                value={formData.priority}
+                onChange={e =>
+                  setFormData({ ...formData, priority: e.target.value as ActivityPriority })
+                }
+              >
+                {PRIORITY_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Tríade do Tempo
+              </label>
+              <select
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
+                value={formData.timeSphere || ''}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    timeSphere: (e.target.value || undefined) as TimeSphere | undefined,
+                  })
+                }
+              >
+                {TIME_SPHERE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {editingActivity && <ActivityChecklistSection activityId={editingActivity.id} />}
 
           <button
             type="submit"
