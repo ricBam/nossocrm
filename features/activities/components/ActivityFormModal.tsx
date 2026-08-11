@@ -1,6 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { Activity, Deal } from '@/types';
+import { Activity, ActivityPriority, ActivityStatus, Deal, TimeSphere } from '@/types';
+import { ActivityChecklistSection } from './ActivityChecklistSection';
 
 interface ActivityFormData {
   title: string;
@@ -9,7 +10,32 @@ interface ActivityFormData {
   time: string;
   description: string;
   dealId: string;
+  status: ActivityStatus;
+  priority: ActivityPriority;
+  timeSphere: TimeSphere | undefined;
 }
+
+const STATUS_OPTIONS: { value: ActivityStatus; label: string }[] = [
+  { value: 'inbox', label: 'Inbox' },
+  { value: 'todo', label: 'A fazer' },
+  { value: 'in_progress', label: 'Em andamento' },
+  { value: 'done', label: 'Concluída' },
+];
+
+const PRIORITY_OPTIONS: { value: ActivityPriority; label: string }[] = [
+  { value: 'none', label: 'Sem prioridade' },
+  { value: 'low', label: 'Baixa' },
+  { value: 'medium', label: 'Média' },
+  { value: 'high', label: 'Alta' },
+  { value: 'urgent', label: 'Urgente' },
+];
+
+const TIME_SPHERE_OPTIONS: { value: TimeSphere | ''; label: string }[] = [
+  { value: '', label: 'Nenhuma' },
+  { value: 'importante', label: 'Importante' },
+  { value: 'urgente', label: 'Urgente' },
+  { value: 'circunstancial', label: 'Circunstancial' },
+];
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -170,6 +196,66 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
               onChange={e => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+              <select
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
+                value={formData.status}
+                onChange={e =>
+                  setFormData({ ...formData, status: e.target.value as ActivityStatus })
+                }
+              >
+                {STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Prioridade
+              </label>
+              <select
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
+                value={formData.priority}
+                onChange={e =>
+                  setFormData({ ...formData, priority: e.target.value as ActivityPriority })
+                }
+              >
+                {PRIORITY_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Tríade do Tempo
+              </label>
+              <select
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
+                value={formData.timeSphere || ''}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    timeSphere: (e.target.value || undefined) as TimeSphere | undefined,
+                  })
+                }
+              >
+                {TIME_SPHERE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {editingActivity && <ActivityChecklistSection activityId={editingActivity.id} />}
 
           <button
             type="submit"

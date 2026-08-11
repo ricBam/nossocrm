@@ -8,6 +8,7 @@ import { ActivitiesList } from './components/ActivitiesList';
 import { ActivitiesCalendar } from './components/ActivitiesCalendar';
 import { ActivityFormModal } from './components/ActivityFormModal';
 import { BulkActionsToolbar } from './components/BulkActionsToolbar';
+import { TaskTabs } from './components/TaskTabs';
 import { useToast } from '@/context/ToastContext';
 
 /**
@@ -18,6 +19,10 @@ export const ActivitiesPage: React.FC = () => {
     const {
         viewMode,
         setViewMode,
+        taskTab,
+        setTaskTab,
+        showCompleted,
+        setShowCompleted,
         searchTerm,
         setSearchTerm,
         filterType,
@@ -38,6 +43,7 @@ export const ActivitiesPage: React.FC = () => {
         handleEditActivity,
         handleDeleteActivity,
         handleToggleComplete,
+        handleSnoozeSelected,
         handleSubmit
     } = useActivitiesController();
 
@@ -69,8 +75,7 @@ export const ActivitiesPage: React.FC = () => {
     };
 
     const handleSnoozeAll = () => {
-        // In a real app, this would update the date of each activity
-        addToast(`${selectedActivities.size} atividades adiadas para amanhã!`, 'success');
+        handleSnoozeSelected(Array.from(selectedActivities));
         handleClearSelection();
     };
 
@@ -85,6 +90,12 @@ export const ActivitiesPage: React.FC = () => {
 
             {viewMode === 'list' ? (
                 <>
+                    <TaskTabs
+                        taskTab={taskTab}
+                        setTaskTab={setTaskTab}
+                        showCompleted={showCompleted}
+                        setShowCompleted={setShowCompleted}
+                    />
                     <ActivitiesFilters
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
