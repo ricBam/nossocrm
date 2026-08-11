@@ -287,6 +287,9 @@ export const useActivitiesController = () => {
             showToast('Atividade atualizada com sucesso', 'success');
             setIsModalOpen(false);
           },
+          onError: (error: Error) => {
+            showToast(`Erro ao atualizar atividade: ${error.message}`, 'error');
+          },
         }
       );
     } else {

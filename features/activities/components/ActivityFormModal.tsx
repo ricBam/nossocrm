@@ -147,12 +147,15 @@ export const ActivityFormModal: React.FC<ActivityFormModalProps> = ({
                 Negócio Relacionado
               </label>
               <select
-                required={!editingActivity}
                 className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary-500"
                 value={formData.dealId}
                 onChange={e => setFormData({ ...formData, dealId: e.target.value })}
               >
-                <option value="">Selecione...</option>
+                {/* Opcional: "tarefa solta" (sem negócio/contato vinculado) é um caso de
+                    uso central da Central de Tarefas (Fase 1) — `deal_id`/`contact_id`
+                    já são nullable no banco (ver docs/plano-central-de-tarefas.md, 1.1).
+                    Nunca marcar este campo como `required`. */}
+                <option value="">Nenhum (tarefa solta)</option>
                 {deals.map(deal => (
                   <option key={deal.id} value={deal.id}>
                     {deal.title}

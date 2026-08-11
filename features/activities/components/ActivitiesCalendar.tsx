@@ -141,10 +141,20 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
             </div>
 
             {/* Calendar Grid */}
-            <div className="overflow-auto max-h-[650px]">
-                <div className="min-w-[900px]">
+            {/*
+              Grid template: coluna de hora tem largura fixa pequena (só precisa
+              caber "9:00") e as 7 colunas de dia dividem o restante igualmente.
+              Antes usava `grid-cols-8` (8 colunas iguais), o que dava à coluna de
+              hora o mesmo espaço de uma coluna de dia inteira — desperdiçando
+              espaço horizontal e deixando as colunas de dia mais estreitas do
+              que precisavam ser. `overflow-x-auto` (não `overflow-auto`) evita
+              scroll vertical interno desnecessário; o `min-w` cai para o mínimo
+              que ainda mantém as colunas legíveis em telas bem estreitas.
+            */}
+            <div className="overflow-x-auto">
+                <div className="min-w-[640px]">
                     {/* Day Headers */}
-                    <div className="grid grid-cols-8 border-b border-slate-200 dark:border-white/10 sticky top-0 bg-white dark:bg-dark-card z-10 shadow-sm">
+                    <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-slate-200 dark:border-white/10 sticky top-0 bg-white dark:bg-dark-card z-10 shadow-sm">
                         <div className="p-3 text-xs font-bold text-slate-500 uppercase bg-slate-50 dark:bg-white/5"></div>
                         {weekDays.map((date, i) => (
                             <div
@@ -169,7 +179,7 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
 
                     {/* Time Slots */}
                     {HOURS.map(hour => (
-                        <div key={hour} className="grid grid-cols-8 border-b border-slate-200 dark:border-white/5">
+                        <div key={hour} className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-slate-200 dark:border-white/5">
                             <div className="p-3 text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5 text-right pr-4">
                                 {hour}:00
                             </div>

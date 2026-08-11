@@ -117,6 +117,24 @@ function isUndefinedColumnError(error: unknown): error is { code: string; messag
   return !!error && (error as any).code === '42703';
 }
 
+/**
+ * Converte qualquer valor lançado (Error real, string, objeto exótico sem
+ * `.message`, etc.) num `Error` limpo com mensagem sempre string-safe.
+ *
+ * Defensivo: garante que o `catch` de `create`/`update` nunca propague um
+ * valor cujo `.message` seja `undefined` ou não-string para a UI (que só
+ * lê `error.message` para o toast) — não depende de o valor lançado ser
+ * necessariamente um `Error` bem formado.
+ */
+function toSafeError(e: unknown): Error {
+  if (e instanceof Error) return e;
+  if (typeof e === 'string') return new Error(e);
+  if (e && typeof (e as { message?: unknown }).message === 'string') {
+    return new Error((e as { message: string }).message);
+  }
+  return new Error('Erro desconhecido ao acessar o banco de dados');
+}
+
 // Interface auxiliar para o retorno do Supabase com o join
 interface DbActivityWithDeal extends DbActivity {
   deals?: { title: string } | null;
@@ -206,7 +224,7 @@ export const activitiesService = {
       const activities = (data || []).map(a => transformActivity(a as DbActivityWithDeal));
       return { data: sortActivitiesSmart(activities), error: null };
     } catch (e) {
-      return { data: null, error: e as Error };
+      return { data: null, error: toSafeError(e) };
     }
   },
 
@@ -263,7 +281,7 @@ export const activitiesService = {
       }
       return { data: null, error: new Error('Falha ao criar atividade após retries de colunas ausentes') };
     } catch (e) {
-      return { data: null, error: e as Error };
+      return { data: null, error: toSafeError(e) };
     }
   },
 
@@ -299,7 +317,7 @@ export const activitiesService = {
       }
       return { error: new Error('Falha ao atualizar atividade após retries de colunas ausentes') };
     } catch (e) {
-      return { error: e as Error };
+      return { error: toSafeError(e) };
     }
   },
 
@@ -321,7 +339,7 @@ export const activitiesService = {
 
       return { error };
     } catch (e) {
-      return { error: e as Error };
+      return { error: toSafeError(e) };
     }
   },
 
@@ -357,7 +375,7 @@ export const activitiesService = {
       if (error) return { data: null, error };
       return { data: newCompleted, error: null };
     } catch (e) {
-      return { data: null, error: e as Error };
+      return { data: null, error: toSafeError(e) };
     }
   },
 };
