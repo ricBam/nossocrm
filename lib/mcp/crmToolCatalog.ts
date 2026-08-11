@@ -170,7 +170,7 @@ export const CRM_TOOL_CATALOG = {
     name: 'crm.activities.create_task',
     title: 'Create activity',
     description:
-      'Writes data. Creates an activity (TASK/CALL/MEETING/EMAIL) optionally linked to a deal within the authenticated organization.',
+      'Writes data. Creates an activity (TASK/CALL/MEETING/EMAIL) optionally linked to a deal and/or contact within the authenticated organization. Also accepts Task Center fields: status (inbox/todo/in_progress/done), priority (none/low/medium/high/urgent), timeSphere ("Tríade do Tempo": importante/urgente/circunstancial) and isFocusToday (today-focus flag). All optional; omitted fields fall back to database defaults (status "todo", priority "none").',
   },
   completeActivity: {
     name: 'crm.activities.complete',

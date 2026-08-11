@@ -1051,34 +1051,47 @@ export function createCRMTools(context: CRMCallOptions, userId: string) {
         }),
 
         createTask: tool({
-            description: 'Cria uma nova tarefa ou atividade para acompanhamento. Requer aprovação no card (Aprovar/Negar) — não peça confirmação em texto.',
+            description: 'Cria uma nova tarefa ou atividade para acompanhamento. Aceita também os campos da Central de Tarefas: status (inbox/todo/in_progress/done), priority (none/low/medium/high/urgent), timeSphere/Tríade do Tempo (importante/urgente/circunstancial), isFocusToday (destaque "foco de hoje") e contactId (vínculo com um contato, além do dealId). Todos opcionais — se omitidos, o banco aplica os defaults (status "todo", priority "none"). Requer aprovação no card (Aprovar/Negar) — não peça confirmação em texto.',
             inputSchema: z.object({
                 title: z.string().describe('Título da tarefa'),
                 description: z.string().optional(),
                 dueDate: z.string().optional().describe('Data de vencimento ISO'),
                 dealId: z.string().optional(),
+                contactId: z.string().optional().describe('ID do contato vinculado (opcional, além ou no lugar do dealId)'),
                 type: z.enum(['CALL', 'MEETING', 'EMAIL', 'TASK']).optional().default('TASK'),
+                status: z.enum(['inbox', 'todo', 'in_progress', 'done']).optional().describe('Status da tarefa na Central de Tarefas. Se omitido, o banco usa "todo".'),
+                priority: z.enum(['none', 'low', 'medium', 'high', 'urgent']).optional().describe('Prioridade da tarefa. Se omitido, o banco usa "none".'),
+                timeSphere: z.enum(['importante', 'urgente', 'circunstancial']).optional().describe('Tríade do Tempo — classifica a tarefa como importante, urgente ou circunstancial.'),
+                isFocusToday: z.boolean().optional().describe('Se true, marca a tarefa como foco do dia.'),
             }),
             needsApproval: !bypassApproval,
-            execute: async ({ title, description, dueDate, dealId, type }) => {
+            execute: async ({ title, description, dueDate, dealId, contactId, type, status, priority, timeSphere, isFocusToday }) => {
                 // supabase is already initialized
                 const targetDealId = dealId || context.dealId;
                 console.log('[AI] ✏️ createTask EXECUTED!', title);
 
                 const date = dueDate || new Date().toISOString();
 
+                const payload: Record<string, unknown> = {
+                    organization_id: organizationId,
+                    title,
+                    description,
+                    date,
+                    deal_id: targetDealId,
+                    contact_id: contactId || null,
+                    type,
+                    owner_id: userId,
+                    completed: false,
+                };
+
+                if (status !== undefined) payload.status = status;
+                if (priority !== undefined) payload.priority = priority;
+                if (timeSphere !== undefined) payload.time_sphere = timeSphere;
+                if (isFocusToday !== undefined) payload.is_focus_today = isFocusToday;
+
                 const { data, error } = await supabase
                     .from('activities')
-                    .insert({
-                        organization_id: organizationId,
-                        title,
-                        description,
-                        date,
-                        deal_id: targetDealId,
-                        type,
-                        owner_id: userId,
-                        completed: false,
-                    })
+                    .insert(payload)
                     .select()
                     .single();
 
