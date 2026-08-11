@@ -61,6 +61,15 @@ export {
   type ActivitiesFilters,
 } from './useActivitiesQuery';
 
+// Activity checklist items (Central de Tarefas)
+export {
+  useActivityChecklist,
+  useCreateChecklistItem,
+  useToggleChecklistItem,
+  useRenameChecklistItem,
+  useDeleteChecklistItem,
+} from './useActivityChecklistQuery';
+
 // Boards
 export {
   useBoards,

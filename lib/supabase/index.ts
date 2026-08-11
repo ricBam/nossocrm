@@ -3,5 +3,6 @@ export { boardsService, boardStagesService } from './boards';
 export { contactsService, companiesService } from './contacts';
 export { dealsService } from './deals';
 export { activitiesService } from './activities';
+export { activityChecklistItemsService } from './activityChecklistItems';
 export { productsService } from './products';
 export { settingsService, lifecycleStagesService } from './settings';

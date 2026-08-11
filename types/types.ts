@@ -259,6 +259,15 @@ export interface DealView extends Deal {
   companyName?: string;
 }
 
+/** Status granular da Central de Tarefas (substitui/complementa `completed`). */
+export type ActivityStatus = 'inbox' | 'todo' | 'in_progress' | 'done';
+
+/** Prioridade da tarefa. */
+export type ActivityPriority = 'none' | 'low' | 'medium' | 'high' | 'urgent';
+
+/** Tríade do Tempo: importante / urgente / circunstancial. */
+export type TimeSphere = 'importante' | 'urgente' | 'circunstancial';
+
 export interface Activity {
   id: string;
   organizationId?: OrganizationId; // Tenant FK (for RLS) - optional during migration
@@ -279,6 +288,33 @@ export interface Activity {
     avatar: string;
   };
   completed: boolean;
+  /**
+   * Campos da Central de Tarefas (opcionais: só existem no banco depois da
+   * migration `20260810130000_task_center_activities_fields.sql`; código
+   * que lê atividades antigas/pré-migration deve tratar como ausentes).
+   */
+  status?: ActivityStatus;
+  priority?: ActivityPriority;
+  timeSphere?: TimeSphere;
+  /** Marca a tarefa para aparecer destacada na aba "Hoje". */
+  isFocusToday?: boolean;
+  /** ID da tarefa-pai, para subtarefas (Fase 2 expõe isso na UI). */
+  parentActivityId?: string;
+  /** Posição para ordenação manual (drag-and-drop, Fase 2). */
+  position?: number;
+  /** Data de início planejada (distinta de `date`, que é o due date/hora). */
+  startDate?: string;
+}
+
+/** Item de checklist simples de uma atividade (Central de Tarefas). */
+export interface ActivityChecklistItem {
+  id: string;
+  activityId: string;
+  organizationId?: OrganizationId;
+  title: string;
+  isDone: boolean;
+  position: number;
+  createdAt: string;
 }
 
 export interface DashboardStats {

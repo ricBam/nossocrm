@@ -13,7 +13,7 @@
  */
 
 import { supabase } from './client';
-import { Activity } from '@/types';
+import { Activity, ActivityPriority, ActivityStatus, TimeSphere } from '@/types';
 import { sanitizeUUID } from './utils';
 import { sortActivitiesSmart } from '@/lib/utils/activitySort';
 
@@ -70,6 +70,51 @@ export interface DbActivity {
   created_at: string;
   /** ID do dono/responsável. */
   owner_id: string | null;
+  /** Status granular da Central de Tarefas (Fase 1, coluna nova). */
+  status?: ActivityStatus;
+  /** Prioridade da tarefa (Fase 1, coluna nova). */
+  priority?: ActivityPriority;
+  /** Tríade do Tempo (Fase 1, coluna nova, nullable). */
+  time_sphere?: TimeSphere | null;
+  /** Foco do dia (Fase 1, coluna nova). */
+  is_focus_today?: boolean;
+  /** ID da tarefa-pai, para subtarefas (Fase 1, coluna nova). */
+  parent_activity_id?: string | null;
+  /** Posição para ordenação manual (Fase 1, coluna nova). */
+  position?: number;
+  /** Data de início planejada (Fase 1, coluna nova, nullable). */
+  start_date?: string | null;
+}
+
+/**
+ * Colunas da Central de Tarefas que podem ainda não existir em produção
+ * até a migration `20260810130000_task_center_activities_fields.sql` ser
+ * aplicada. Usadas pelo retry defensivo de `create`/`update` abaixo, na
+ * mesma técnica já usada para `client_company_id`/`participant_contact_ids`.
+ */
+const TASK_CENTER_COLUMNS = [
+  'status',
+  'priority',
+  'time_sphere',
+  'is_focus_today',
+  'parent_activity_id',
+  'position',
+  'start_date',
+] as const;
+
+const RETRYABLE_COLUMNS = ['client_company_id', 'participant_contact_ids', ...TASK_CENTER_COLUMNS];
+
+/**
+ * Extrai o nome da coluna citada numa mensagem de erro Postgres 42703
+ * (undefined_column), ex: `column "status" of relation "activities" does not exist`.
+ */
+function extractMissingColumn(message: string): string | null {
+  const match = message.match(/column "([^"]+)"/);
+  return match ? match[1] : null;
+}
+
+function isUndefinedColumnError(error: unknown): error is { code: string; message: string } {
+  return !!error && (error as any).code === '42703';
 }
 
 // Interface auxiliar para o retorno do Supabase com o join
@@ -97,11 +142,18 @@ const transformActivity = (db: DbActivityWithDeal): Activity => ({
   participantContactIds: (db as any).participant_contact_ids || [],
   dealTitle: db.deals?.title || '',
   user: { name: 'Você', avatar: '' }, // Will be enriched later
+  status: db.status ?? undefined,
+  priority: db.priority ?? undefined,
+  timeSphere: db.time_sphere ?? undefined,
+  isFocusToday: db.is_focus_today ?? undefined,
+  parentActivityId: db.parent_activity_id ?? undefined,
+  position: db.position ?? undefined,
+  startDate: db.start_date ?? undefined,
 });
 
 /**
  * Transforma atividade do formato da aplicação para o formato DB.
- * 
+ *
  * @param activity - Atividade parcial no formato da aplicação.
  * @returns Atividade parcial no formato do banco.
  */
@@ -117,6 +169,13 @@ const transformActivityToDb = (activity: Partial<Activity>): Partial<DbActivity>
   if (activity.contactId !== undefined) db.contact_id = sanitizeUUID(activity.contactId);
   if (activity.clientCompanyId !== undefined) (db as any).client_company_id = sanitizeUUID(activity.clientCompanyId);
   if (activity.participantContactIds !== undefined) (db as any).participant_contact_ids = activity.participantContactIds || [];
+  if (activity.status !== undefined) db.status = activity.status;
+  if (activity.priority !== undefined) db.priority = activity.priority;
+  if (activity.timeSphere !== undefined) db.time_sphere = activity.timeSphere ?? null;
+  if (activity.isFocusToday !== undefined) db.is_focus_today = activity.isFocusToday;
+  if (activity.parentActivityId !== undefined) db.parent_activity_id = sanitizeUUID(activity.parentActivityId);
+  if (activity.position !== undefined) db.position = activity.position;
+  if (activity.startDate !== undefined) db.start_date = activity.startDate || null;
 
   return db;
 };
@@ -163,7 +222,7 @@ export const activitiesService = {
       if (!sb) return { data: null, error: new Error('Supabase não configurado') };
 
       const organizationId = await getCurrentOrganizationId();
-      const insertData: any = {
+      const insertData: Record<string, unknown> = {
         title: activity.title,
         description: activity.description || null,
         type: activity.type,
@@ -173,30 +232,36 @@ export const activitiesService = {
         contact_id: sanitizeUUID(activity.contactId),
         client_company_id: sanitizeUUID(activity.clientCompanyId),
         participant_contact_ids: activity.participantContactIds || [],
+        ...(activity.status !== undefined ? { status: activity.status } : {}),
+        ...(activity.priority !== undefined ? { priority: activity.priority } : {}),
+        ...(activity.timeSphere !== undefined ? { time_sphere: activity.timeSphere ?? null } : {}),
+        ...(activity.isFocusToday !== undefined ? { is_focus_today: activity.isFocusToday } : {}),
+        ...(activity.parentActivityId !== undefined
+          ? { parent_activity_id: sanitizeUUID(activity.parentActivityId) }
+          : {}),
+        ...(activity.position !== undefined ? { position: activity.position } : {}),
+        ...(activity.startDate !== undefined ? { start_date: activity.startDate || null } : {}),
         ...(organizationId ? { organization_id: organizationId } : {}),
       };
 
-      const { data, error } = await sb.from('activities').insert(insertData).select().single();
+      // Retry defensivo: se a migration da Central de Tarefas (colunas novas
+      // em `activities`) ainda não foi aplicada em produção, cada tentativa
+      // remove a coluna inexistente e insere de novo, até esgotar as colunas
+      // conhecidas como "podem não existir ainda" (mesma técnica já usada
+      // para client_company_id/participant_contact_ids).
+      let payload = insertData;
+      for (let attempt = 0; attempt <= RETRYABLE_COLUMNS.length; attempt++) {
+        const { data, error } = await sb.from('activities').insert(payload).select().single();
+        if (!error) return { data: transformActivity(data as DbActivity), error: null };
 
-      if (error) {
-        // Se a migration ainda não foi aplicada, faz retry sem os novos campos.
-        const msg = (error as any)?.message || '';
-        const code = (error as any)?.code || '';
-        if (code === '42703' && msg.includes('client_company_id')) {
-          delete insertData.client_company_id;
-          const retry = await sb.from('activities').insert(insertData).select().single();
-          if (retry.error) return { data: null, error: retry.error as any };
-          return { data: transformActivity(retry.data as DbActivity), error: null };
-        }
-        if (code === '42703' && msg.includes('participant_contact_ids')) {
-          delete insertData.participant_contact_ids;
-          const retry = await sb.from('activities').insert(insertData).select().single();
-          if (retry.error) return { data: null, error: retry.error as any };
-          return { data: transformActivity(retry.data as DbActivity), error: null };
-        }
-        return { data: null, error };
+        if (!isUndefinedColumnError(error)) return { data: null, error };
+        const missingColumn = extractMissingColumn((error as any).message || '');
+        if (!missingColumn || !(missingColumn in payload)) return { data: null, error };
+
+        const { [missingColumn]: _removed, ...rest } = payload;
+        payload = rest;
       }
-      return { data: transformActivity(data as DbActivity), error: null };
+      return { data: null, error: new Error('Falha ao criar atividade após retries de colunas ausentes') };
     } catch (e) {
       return { data: null, error: e as Error };
     }
@@ -216,25 +281,23 @@ export const activitiesService = {
 
       const dbUpdates = transformActivityToDb(updates);
 
-      const { error } = await sb.from('activities').update(dbUpdates as any).eq('id', id);
+      // Mesmo retry defensivo de `create`: remove coluna ausente e tenta de
+      // novo, até esgotar as colunas conhecidas como "podem não existir
+      // ainda" (colunas da Central de Tarefas antes da migration ser
+      // aplicada).
+      let payload: Record<string, unknown> = { ...dbUpdates };
+      for (let attempt = 0; attempt <= RETRYABLE_COLUMNS.length; attempt++) {
+        const { error } = await sb.from('activities').update(payload).eq('id', id);
+        if (!error) return { error: null };
 
-      // Retry se colunas novas não existem ainda
-      if (error) {
-        const msg = (error as any)?.message || '';
-        const code = (error as any)?.code || '';
-        if (code === '42703' && msg.includes('client_company_id')) {
-          const { client_company_id, ...rest } = dbUpdates as any;
-          const retry = await sb.from('activities').update(rest).eq('id', id);
-          return { error: retry.error as any };
-        }
-        if (code === '42703' && msg.includes('participant_contact_ids')) {
-          const { participant_contact_ids, ...rest } = dbUpdates as any;
-          const retry = await sb.from('activities').update(rest).eq('id', id);
-          return { error: retry.error as any };
-        }
+        if (!isUndefinedColumnError(error)) return { error };
+        const missingColumn = extractMissingColumn((error as any).message || '');
+        if (!missingColumn || !(missingColumn in payload)) return { error };
+
+        const { [missingColumn]: _removed, ...rest } = payload;
+        payload = rest;
       }
-
-      return { error };
+      return { error: new Error('Falha ao atualizar atividade após retries de colunas ausentes') };
     } catch (e) {
       return { error: e as Error };
     }
