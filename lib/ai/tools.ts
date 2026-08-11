@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createStaticAdminClient } from '@/lib/supabase/staticAdminClient';
 import type { CRMCallOptions } from '@/types/ai';
 import { sanitizePostgrestValue } from '@/lib/utils/sanitize';
+import { lenientBoolean } from '@/lib/utils/lenientBoolean';
 
 /**
  * Creates all CRM tools with context injection
@@ -1062,7 +1063,7 @@ export function createCRMTools(context: CRMCallOptions, userId: string) {
                 status: z.enum(['inbox', 'todo', 'in_progress', 'done']).optional().describe('Status da tarefa na Central de Tarefas. Se omitido, o banco usa "todo".'),
                 priority: z.enum(['none', 'low', 'medium', 'high', 'urgent']).optional().describe('Prioridade da tarefa. Se omitido, o banco usa "none".'),
                 timeSphere: z.enum(['importante', 'urgente', 'circunstancial']).optional().describe('Tríade do Tempo — classifica a tarefa como importante, urgente ou circunstancial.'),
-                isFocusToday: z.boolean().optional().describe('Se true, marca a tarefa como foco do dia.'),
+                isFocusToday: lenientBoolean().optional().describe('Se true, marca a tarefa como foco do dia.'),
             }),
             needsApproval: !bypassApproval,
             execute: async ({ title, description, dueDate, dealId, contactId, type, status, priority, timeSphere, isFocusToday }) => {
@@ -1115,9 +1116,9 @@ export function createCRMTools(context: CRMCallOptions, userId: string) {
                 boardId: z.string().optional().describe('Board alvo (usa contexto se não fornecido)'),
                 stageName: z.string().optional().describe('Nome do estágio destino (ex: "Contatado")'),
                 stageId: z.string().optional().describe('ID do estágio destino'),
-                allowPartial: z.boolean().optional().default(true).describe('Se true, ignora IDs que não pertencem ao tenant e move o restante'),
+                allowPartial: lenientBoolean().optional().default(true).describe('Se true, ignora IDs que não pertencem ao tenant e move o restante'),
                 maxDeals: z.number().int().positive().optional().default(50).describe('Guardrail: máximo de deals por ação'),
-                createFollowUpTask: z.boolean().optional().default(false).describe('Se true, cria 1 tarefa por deal após mover (guardrails aplicados)'),
+                createFollowUpTask: lenientBoolean().optional().default(false).describe('Se true, cria 1 tarefa por deal após mover (guardrails aplicados)'),
                 followUpTitle: z.string().optional().describe('Título da tarefa de follow-up'),
                 followUpDueInDays: z.number().int().positive().optional().default(2),
                 followUpType: z.enum(['CALL', 'MEETING', 'EMAIL', 'TASK']).optional().default('TASK'),
@@ -1219,7 +1220,7 @@ export function createCRMTools(context: CRMCallOptions, userId: string) {
                 boardId: z.string().optional(),
                 dealId: z.string().optional(),
                 contactId: z.string().optional(),
-                completed: z.boolean().optional(),
+                completed: lenientBoolean().optional(),
                 fromDate: z.string().optional().describe('ISO'),
                 toDate: z.string().optional().describe('ISO'),
                 limit: z.number().int().positive().optional().default(10),
@@ -1578,7 +1579,7 @@ export function createCRMTools(context: CRMCallOptions, userId: string) {
                 label: z.string().optional(),
                 color: z.string().optional(),
                 order: z.number().int().optional(),
-                isDefault: z.boolean().optional(),
+                isDefault: lenientBoolean().optional(),
             }),
             needsApproval: !bypassApproval,
             execute: async ({ stageId, name, label, color, order, isDefault }) => {

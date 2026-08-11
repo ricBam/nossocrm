@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getMcpContext } from '@/lib/mcp/context';
 import { createStaticAdminClient } from '@/lib/supabase/staticAdminClient';
+import { lenientBoolean } from '@/lib/utils/lenientBoolean';
 
 const getDb = () => createStaticAdminClient();
 
@@ -83,10 +84,10 @@ export function registerAdminTools(server: McpServer) {
       description:
         'Writes data. Updates non-sensitive AI configuration fields. API keys cannot be updated via MCP — use the web UI for key management. Scoped to the authenticated organization.',
       inputSchema: {
-        ai_enabled: z.boolean().optional(),
+        ai_enabled: lenientBoolean().optional(),
         ai_provider: z.string().optional(),
         ai_model: z.string().optional(),
-        ai_takeover_enabled: z.boolean().optional(),
+        ai_takeover_enabled: lenientBoolean().optional(),
         ai_config_mode: z
           .enum(['zero_config', 'template', 'auto_learn', 'advanced'])
           .optional(),
