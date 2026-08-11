@@ -16,6 +16,9 @@ import { matchesTaskTab, type TaskTab } from '@/lib/utils/activityTaskFilters';
 
 export type { TaskTab };
 
+/** Valores válidos de `ActivityStatus` — usado para validar `defaultStatus` em `handleNewActivity`. */
+const ACTIVITY_STATUS_VALUES: ActivityStatus[] = ['inbox', 'todo', 'in_progress', 'done'];
+
 /**
  * Hook React `useActivitiesController` que encapsula uma lógica reutilizável.
  */
@@ -143,6 +146,22 @@ export const useActivitiesController = () => {
   }, [activities, dateBoundaries, searchTerm, filterType, dateFilter, taskTab, showCompleted]);
 
   const handleNewActivity = (defaultStatus?: ActivityStatus) => {
+    // Defensivo (causa raiz real do bug "Converting circular structure to
+    // JSON ... constructor 'Window'", 2026-08-11): esta função é usada
+    // diretamente como handler de `onClick` em mais de um lugar (botão
+    // "Nova Atividade" do header, botão do empty state). Quando isso
+    // acontece sem envolver a chamada numa arrow function, o clique passa
+    // o SyntheticEvent do React como `defaultStatus` (React sempre invoca
+    // um `onClick` de elemento nativo com o evento, independente do que o
+    // tipo TypeScript do prop declara). Esse evento acabava salvo em
+    // `formData.status` e quebrava o insert no Supabase — `event.view` é
+    // uma referência direta a `window`, e `window.window === window` é
+    // exatamente o ciclo que o erro relatado descreve. Só aceitar valores
+    // realmente pertencentes ao enum protege este ponto mesmo que um
+    // call site futuro repita o mesmo erro de wiring.
+    const safeDefaultStatus = ACTIVITY_STATUS_VALUES.includes(defaultStatus as ActivityStatus)
+      ? (defaultStatus as ActivityStatus)
+      : undefined;
     setEditingActivity(null);
     setFormData({
       title: '',
@@ -151,7 +170,7 @@ export const useActivitiesController = () => {
       time: '09:00',
       description: '',
       dealId: '',
-      status: defaultStatus || (taskTab === 'inbox' ? 'inbox' : 'todo'),
+      status: safeDefaultStatus || (taskTab === 'inbox' ? 'inbox' : 'todo'),
       priority: 'none',
       timeSphere: undefined,
     });

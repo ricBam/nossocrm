@@ -84,7 +84,7 @@ export const ActivitiesPage: React.FC = () => {
             <ActivitiesHeader
                 viewMode={viewMode}
                 setViewMode={setViewMode}
-                onNewActivity={handleNewActivity}
+                onNewActivity={() => handleNewActivity()}
                 dateFilter={dateFilter}
             />
 
@@ -112,7 +112,7 @@ export const ActivitiesPage: React.FC = () => {
                         onDelete={handleDeleteActivity}
                         selectedActivities={selectedActivities}
                         onSelectActivity={handleSelectActivity}
-                        onAddActivity={handleNewActivity}
+                        onAddActivity={() => handleNewActivity()}
                     />
                 </>
             ) : (
