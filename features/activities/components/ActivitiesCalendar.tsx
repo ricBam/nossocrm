@@ -7,6 +7,8 @@ interface ActivitiesCalendarProps {
     deals: Deal[];
     currentDate: Date;
     setCurrentDate: (date: Date) => void;
+    /** Abre a visualização somente leitura ao clicar num evento (Pedido do fundador, 2026-08-11). */
+    onView: (activity: Activity) => void;
 }
 
 const HOURS = Array.from({ length: 10 }, (_, i) => i + 9); // 9:00 to 18:00
@@ -32,7 +34,8 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
     activities,
     deals,
     currentDate,
-    setCurrentDate
+    setCurrentDate,
+    onView,
 }) => {
     const getWeekStart = (date: Date) => {
         const d = new Date(date);
@@ -198,6 +201,15 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
                                             {hourActivities.map(activity => (
                                                 <div
                                                     key={activity.id}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => onView(activity)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            onView(activity);
+                                                        }
+                                                    }}
                                                     className={`
                                                         group relative
                                                         text-xs p-3 rounded-xl border-2

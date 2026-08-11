@@ -922,6 +922,7 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                             if (act) updateActivity(id, { completed: !act.completed });
                           }}
                           onEdit={() => { }} // Edit not implemented in modal yet
+                          onView={() => { }} // Read-only view (Central de Tarefas) not wired here yet
                           onDelete={id => deleteActivity(id)}
                         />
                       ))}

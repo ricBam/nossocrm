@@ -13,8 +13,12 @@ import { useDeals } from '@/lib/query/hooks/useDealsQuery';
 import { useContacts, useCompanies } from '@/lib/query/hooks/useContactsQuery';
 import { useRealtimeSync } from '@/lib/realtime/useRealtimeSync';
 import { matchesTaskTab, type TaskTab } from '@/lib/utils/activityTaskFilters';
+import type { ListLayout } from '../components/ActivitiesList';
 
 export type { TaskTab };
+
+/** Visões de topo da Central de Tarefas dentro de `/activities`. */
+export type ViewMode = 'list' | 'calendar' | 'kanban';
 
 /** Valores válidos de `ActivityStatus` — usado para validar `defaultStatus` em `handleNewActivity`. */
 const ACTIVITY_STATUS_VALUES: ActivityStatus[] = ['inbox', 'todo', 'in_progress', 'done'];
@@ -43,8 +47,9 @@ export const useActivitiesController = () => {
 
   const { showToast } = useToast();
 
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [viewMode, setViewModeState] = useState<ViewMode>('list');
   const [taskTab, setTaskTabState] = useState<TaskTab>('all');
+  const [listLayout, setListLayout] = useState<ListLayout>('rows');
   const [showCompleted, setShowCompleted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<Activity['type'] | 'ALL'>('ALL');
@@ -52,6 +57,7 @@ export const useActivitiesController = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [viewingActivity, setViewingActivity] = useState<Activity | null>(null);
 
   // Permite deep-link do Inbox (o módulo de mensageria, não a aba "Inbox"
   // da Central de Tarefas): /activities?filter=overdue|today|upcoming
@@ -60,7 +66,7 @@ export const useActivitiesController = () => {
 
     if (filter === 'overdue' || filter === 'today' || filter === 'upcoming') {
       setDateFilter(filter);
-      setViewMode('list');
+      setViewModeState('list');
       return;
     }
 
@@ -68,13 +74,53 @@ export const useActivitiesController = () => {
     setDateFilter('ALL');
   }, [searchParams]);
 
-  // Deep-link da aba da Central de Tarefas: /activities?view=todas|hoje|inbox
+  /**
+   * Deep-link combinado de visão de topo + aba da Central de Tarefas, tudo
+   * sob o mesmo parâmetro `view` (Pedido do fundador, 2026-08-11: Kanban
+   * entra "no mesmo padrão dos outros `?view=` já usados"). As duas
+   * dimensões não são ortogonais na prática — a aba (Todas/Hoje/Inbox) só
+   * existe dentro da visão Lista — então cabem no mesmo parâmetro sem
+   * ambiguidade: `hoje`/`inbox` implicam viewMode `list`; `calendario`/
+   * `kanban` implicam taskTab `all` (a aba não é exibida fora da Lista).
+   */
   useEffect(() => {
     const view = (searchParams.get('view') || '').toLowerCase();
-    if (view === 'hoje') setTaskTabState('today');
-    else if (view === 'inbox') setTaskTabState('inbox');
-    else setTaskTabState('all');
+    switch (view) {
+      case 'calendario':
+        setViewModeState('calendar');
+        setTaskTabState('all');
+        break;
+      case 'kanban':
+        setViewModeState('kanban');
+        setTaskTabState('all');
+        break;
+      case 'hoje':
+        setViewModeState('list');
+        setTaskTabState('today');
+        break;
+      case 'inbox':
+        setViewModeState('list');
+        setTaskTabState('inbox');
+        break;
+      default:
+        setViewModeState('list');
+        setTaskTabState('all');
+    }
   }, [searchParams]);
+
+  /** Troca de visão de topo refletindo no query string (`?view=`), sem navegação/scroll. */
+  const setViewMode = useCallback(
+    (mode: ViewMode) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (mode === 'calendar') params.set('view', 'calendario');
+      else if (mode === 'kanban') params.set('view', 'kanban');
+      else params.delete('view'); // volta pra Lista/Todas
+      router.replace(params.toString() ? `?${params.toString()}` : '?', { scroll: false });
+      setViewModeState(mode);
+      setTaskTabState('all');
+    },
+    [router, searchParams]
+  );
 
   /** Troca de aba refletindo no query string, sem navegação/scroll. */
   const setTaskTab = useCallback(
@@ -84,6 +130,7 @@ export const useActivitiesController = () => {
       else params.set('view', tab === 'today' ? 'hoje' : 'inbox');
       router.replace(params.toString() ? `?${params.toString()}` : '?', { scroll: false });
       setTaskTabState(tab);
+      setViewModeState('list');
     },
     [router, searchParams]
   );
@@ -116,7 +163,15 @@ export const useActivitiesController = () => {
     return { todayTs: today.getTime(), tomorrowTs: tomorrow.getTime() };
   }, []);
 
-  const filteredActivities = useMemo(() => {
+  /**
+   * Filtro comum (busca + tipo + `dateFilter`), sem o filtro de aba
+   * (Todas/Hoje/Inbox). Extraído de `filteredActivities` para que o Kanban
+   * (`kanbanActivities` abaixo) reuse a mesma base sem herdar o
+   * `matchesTaskTab` — o Kanban precisa mostrar TODAS as tarefas reais,
+   * incluindo concluídas na coluna "Concluído", o que a aba "Todas" (com
+   * `showCompleted=false` por padrão) excluiria.
+   */
+  const baseFilteredActivities = useMemo(() => {
     const { todayTs, tomorrowTs } = dateBoundaries;
     const q = searchTerm.toLowerCase();
 
@@ -136,14 +191,30 @@ export const useActivitiesController = () => {
                 ? isPending && ts >= todayTs && ts < tomorrowTs
                 : isPending && ts >= tomorrowTs;
 
-        const belongsToTaskTab = matchesTaskTab(activity, { taskTab, showCompleted });
-
-        return matchesSearch && matchesType && matchesDateFilter && belongsToTaskTab;
+        return matchesSearch && matchesType && matchesDateFilter;
       })
       // Performance: sort by numeric timestamp (avoid `new Date(...)` in comparator).
       .sort((a, b) => a.ts - b.ts)
       .map(({ activity }) => activity);
-  }, [activities, dateBoundaries, searchTerm, filterType, dateFilter, taskTab, showCompleted]);
+  }, [activities, dateBoundaries, searchTerm, filterType, dateFilter]);
+
+  const filteredActivities = useMemo(
+    () => baseFilteredActivities.filter((activity) => matchesTaskTab(activity, { taskTab, showCompleted })),
+    [baseFilteredActivities, taskTab, showCompleted]
+  );
+
+  /**
+   * Dados do Kanban (Pedido do fundador, 2026-08-11): mesma base de
+   * busca/tipo/data, mas sem o filtro de aba (mostra concluídas também, na
+   * coluna "Concluído") e sem as entradas automáticas `STATUS_CHANGE`
+   * ("Moveu para X", "Negócio Criado") — são log de auditoria da mudança de
+   * estágio do negócio (`useMoveDeal.ts`), não tarefas reais, e poluiriam a
+   * coluna "A Fazer" (cairiam lá pelo default de coluna `status='todo'`).
+   */
+  const kanbanActivities = useMemo(
+    () => baseFilteredActivities.filter((activity) => activity.type !== 'STATUS_CHANGE'),
+    [baseFilteredActivities]
+  );
 
   const handleNewActivity = (defaultStatus?: ActivityStatus) => {
     // Defensivo (causa raiz real do bug "Converting circular structure to
@@ -178,6 +249,9 @@ export const useActivitiesController = () => {
   };
 
   const handleEditActivity = (activity: Activity) => {
+    // Fecha a view somente leitura, se estiver aberta (o botão "Editar" de
+    // dentro dela chama este handler) — nunca os dois modais abertos juntos.
+    setViewingActivity(null);
     setEditingActivity(activity);
     const date = new Date(activity.date);
     setFormData({
@@ -193,6 +267,35 @@ export const useActivitiesController = () => {
     });
     setIsModalOpen(true);
   };
+
+  /**
+   * Abre a visualização somente leitura (Pedido do fundador, 2026-08-11).
+   * Clicar numa atividade (lista, blocos, calendário ou Kanban) chama isto,
+   * nunca `handleEditActivity` diretamente — editar é exclusivo do ícone de
+   * lápis (que existe na linha da lista e dentro desta própria view).
+   */
+  const handleViewActivity = useCallback((activity: Activity) => {
+    setViewingActivity(activity);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setViewingActivity(null);
+  }, []);
+
+  /** Muda o status de uma tarefa a partir do Kanban (drag-and-drop ou o `<select>` do card). */
+  const handleChangeActivityStatus = useCallback(
+    (id: string, status: ActivityStatus) => {
+      updateActivityMutation.mutate(
+        { id, updates: { status } },
+        {
+          onError: (error: Error) => {
+            showToast(`Erro ao mover atividade: ${error.message}`, 'error');
+          },
+        }
+      );
+    },
+    [updateActivityMutation, showToast]
+  );
 
   const handleDeleteActivity = (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta atividade?')) {
@@ -349,6 +452,8 @@ export const useActivitiesController = () => {
     setViewMode,
     taskTab,
     setTaskTab,
+    listLayout,
+    setListLayout,
     showCompleted,
     setShowCompleted,
     searchTerm,
@@ -362,15 +467,20 @@ export const useActivitiesController = () => {
     isModalOpen,
     setIsModalOpen,
     editingActivity,
+    viewingActivity,
     formData,
     setFormData,
     filteredActivities,
+    kanbanActivities,
     deals,
     contacts,
     companies,
     isLoading,
     handleNewActivity,
     handleEditActivity,
+    handleViewActivity,
+    handleCloseDetail,
+    handleChangeActivityStatus,
     handleDeleteActivity,
     handleToggleComplete,
     handleSnoozeSelected,

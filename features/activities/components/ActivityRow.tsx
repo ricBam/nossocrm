@@ -12,6 +12,12 @@ interface ActivityRowProps {
     onToggleComplete: (id: string) => void;
     onEdit: (activity: Activity) => void;
     onDelete: (id: string) => void;
+    /**
+     * Abre a visualização somente leitura (Pedido do fundador, 2026-08-11) —
+     * clicar na linha abre a view, não o formulário. Editar continua
+     * exclusivo do ícone de lápis (`onEdit`).
+     */
+    onView: (activity: Activity) => void;
     isSelected?: boolean;
     onSelect?: (id: string, selected: boolean) => void;
 }
@@ -28,6 +34,7 @@ const ActivityRowComponent: React.FC<ActivityRowProps> = ({
     onToggleComplete,
     onEdit,
     onDelete,
+    onView,
     isSelected = false,
     onSelect
 }) => {
@@ -126,19 +133,44 @@ const ActivityRowComponent: React.FC<ActivityRowProps> = ({
         );
     }
 
+    /**
+     * Abre a visualização somente leitura (Pedido do fundador, 2026-08-11).
+     * A linha inteira fica clicável para isso; os controles internos
+     * (checkbox de seleção, concluir, editar, excluir) chamam
+     * `stopPropagation()` para não disparar `onView` também.
+     */
+    const handleRowClick = () => onView(activity);
+    const handleRowKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onView(activity);
+        }
+    };
+
     return (
-        <div className={`group flex items-center gap-4 p-4 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/5 rounded-xl hover:border-primary-500/50 dark:hover:border-primary-500/50 transition-all ${activity.completed ? 'opacity-60' : ''} ${isSelected ? 'border-primary-500 dark:border-primary-500 bg-primary-50/50 dark:bg-primary-500/10' : ''}`}>
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={handleRowClick}
+            onKeyDown={handleRowKeyDown}
+            className={`group flex items-center gap-4 p-4 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/5 rounded-xl hover:border-primary-500/50 dark:hover:border-primary-500/50 transition-all cursor-pointer ${activity.completed ? 'opacity-60' : ''} ${isSelected ? 'border-primary-500 dark:border-primary-500 bg-primary-50/50 dark:bg-primary-500/10' : ''}`}
+        >
             {onSelect && (
                 <input
                     type="checkbox"
                     checked={isSelected}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={(e) => onSelect(activity.id, e.target.checked)}
                     className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
                 />
             )}
 
             <button
-                onClick={() => onToggleComplete(activity.id)}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleComplete(activity.id);
+                }}
+                aria-label={activity.completed ? 'Reabrir atividade' : 'Concluir atividade'}
                 className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${activity.completed
                     ? 'bg-green-500 border-green-500 text-white'
                     : 'border-slate-300 dark:border-slate-600 hover:border-green-500 text-transparent hover:text-green-500'
@@ -193,14 +225,20 @@ const ActivityRowComponent: React.FC<ActivityRowProps> = ({
 
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                    onClick={() => onEdit(activity)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(activity);
+                    }}
                     className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"
                     title="Editar"
                 >
                     <Edit2 size={16} />
                 </button>
                 <button
-                    onClick={() => onDelete(activity.id)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(activity.id);
+                    }}
                     className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                     title="Excluir"
                 >

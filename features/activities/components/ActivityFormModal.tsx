@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { Activity, ActivityPriority, ActivityStatus, Deal, TimeSphere } from '@/types';
 import { ActivityChecklistSection } from './ActivityChecklistSection';
+import { STATUS_OPTIONS, PRIORITY_OPTIONS, TIME_SPHERE_OPTIONS } from '../activityOptions';
 
 interface ActivityFormData {
   title: string;
@@ -14,28 +15,6 @@ interface ActivityFormData {
   priority: ActivityPriority;
   timeSphere: TimeSphere | undefined;
 }
-
-const STATUS_OPTIONS: { value: ActivityStatus; label: string }[] = [
-  { value: 'inbox', label: 'Inbox' },
-  { value: 'todo', label: 'A fazer' },
-  { value: 'in_progress', label: 'Em andamento' },
-  { value: 'done', label: 'Concluída' },
-];
-
-const PRIORITY_OPTIONS: { value: ActivityPriority; label: string }[] = [
-  { value: 'none', label: 'Sem prioridade' },
-  { value: 'low', label: 'Baixa' },
-  { value: 'medium', label: 'Média' },
-  { value: 'high', label: 'Alta' },
-  { value: 'urgent', label: 'Urgente' },
-];
-
-const TIME_SPHERE_OPTIONS: { value: TimeSphere | ''; label: string }[] = [
-  { value: '', label: 'Nenhuma' },
-  { value: 'importante', label: 'Importante' },
-  { value: 'urgente', label: 'Urgente' },
-  { value: 'circunstancial', label: 'Circunstancial' },
-];
 
 interface ActivityFormModalProps {
   isOpen: boolean;

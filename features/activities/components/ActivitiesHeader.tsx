@@ -1,9 +1,10 @@
 import React from 'react';
-import { Plus, LayoutList, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, LayoutList, Calendar as CalendarIcon, Kanban } from 'lucide-react';
+import type { ViewMode } from '../hooks/useActivitiesController';
 
 interface ActivitiesHeaderProps {
-  viewMode: 'list' | 'calendar';
-  setViewMode: (mode: 'list' | 'calendar') => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
   onNewActivity: () => void;
   dateFilter?: 'ALL' | 'overdue' | 'today' | 'upcoming';
 }
@@ -75,6 +76,17 @@ export const ActivitiesHeader: React.FC<ActivitiesHeaderProps> = ({
             }`}
           >
             <CalendarIcon size={20} />
+          </button>
+          <button
+            onClick={() => setViewMode('kanban')}
+            title="Kanban"
+            className={`p-2 rounded-md transition-all ${
+              viewMode === 'kanban'
+                ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <Kanban size={20} />
           </button>
         </div>
         <button
