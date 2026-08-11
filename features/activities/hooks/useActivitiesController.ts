@@ -108,32 +108,66 @@ export const useActivitiesController = () => {
     }
   }, [searchParams]);
 
-  /** Troca de visão de topo refletindo no query string (`?view=`), sem navegação/scroll. */
+  /**
+   * Troca de visão de topo refletindo no query string (`?view=`), sem
+   * navegação/scroll. Também limpa `?filter=`/`dateFilter` (bug real
+   * reportado pelo fundador, 2026-08-11): `dateFilter` é um mecanismo
+   * separado e mais antigo, usado só para deep-link vindo do módulo de
+   * Inbox (`/activities?filter=overdue|today|upcoming`, ver efeito acima).
+   * Antes desta correção, trocar de visão só mexia em `?view=`, deixando
+   * `?filter=` intacto na URL — o efeito que lê `filter` reaplicava o
+   * mesmo `dateFilter` de novo a cada render, prendendo o usuário no
+   * filtro antigo mesmo depois de trocar de aba/visão. Ao trocar de visão
+   * deliberadamente, o usuário está saindo do contexto do deep-link.
+   */
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       const params = new URLSearchParams(searchParams.toString());
       if (mode === 'calendar') params.set('view', 'calendario');
       else if (mode === 'kanban') params.set('view', 'kanban');
       else params.delete('view'); // volta pra Lista/Todas
+      params.delete('filter');
       router.replace(params.toString() ? `?${params.toString()}` : '?', { scroll: false });
       setViewModeState(mode);
       setTaskTabState('all');
+      setDateFilter('ALL');
     },
     [router, searchParams]
   );
 
-  /** Troca de aba refletindo no query string, sem navegação/scroll. */
+  /**
+   * Troca de aba refletindo no query string, sem navegação/scroll. Também
+   * limpa `?filter=`/`dateFilter` pelo mesmo motivo documentado acima em
+   * `setViewMode` — trocar de aba (Todas/Hoje/Inbox) precisa mostrar
+   * exatamente o que a aba escolhida promete, sem um filtro de data mais
+   * antigo grudado por baixo.
+   */
   const setTaskTab = useCallback(
     (tab: TaskTab) => {
       const params = new URLSearchParams(searchParams.toString());
       if (tab === 'all') params.delete('view');
       else params.set('view', tab === 'today' ? 'hoje' : 'inbox');
+      params.delete('filter');
       router.replace(params.toString() ? `?${params.toString()}` : '?', { scroll: false });
       setTaskTabState(tab);
       setViewModeState('list');
+      setDateFilter('ALL');
     },
     [router, searchParams]
   );
+
+  /**
+   * Limpa explicitamente o `dateFilter` vindo do deep-link `?filter=`
+   * (botão "x" no badge "Filtro: ..." do header) sem mexer em
+   * `viewMode`/`taskTab` — para o caso do usuário querer só remover o
+   * filtro de data e continuar na mesma visão/aba em que já estava.
+   */
+  const clearDateFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('filter');
+    router.replace(params.toString() ? `?${params.toString()}` : '?', { scroll: false });
+    setDateFilter('ALL');
+  }, [router, searchParams]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -462,6 +496,7 @@ export const useActivitiesController = () => {
     setFilterType,
     dateFilter,
     setDateFilter,
+    clearDateFilter,
     currentDate,
     setCurrentDate,
     isModalOpen,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, LayoutList, Calendar as CalendarIcon, Kanban } from 'lucide-react';
+import { Plus, LayoutList, Calendar as CalendarIcon, Kanban, X } from 'lucide-react';
 import type { ViewMode } from '../hooks/useActivitiesController';
 
 interface ActivitiesHeaderProps {
@@ -7,6 +7,12 @@ interface ActivitiesHeaderProps {
   setViewMode: (mode: ViewMode) => void;
   onNewActivity: () => void;
   dateFilter?: 'ALL' | 'overdue' | 'today' | 'upcoming';
+  /**
+   * Limpa o `dateFilter` (deep-link `?filter=` vindo do módulo de Inbox).
+   * Opcional só por compatibilidade com testes existentes que não passam
+   * a prop — quando ausente, o badge não mostra o botão de fechar.
+   */
+  onClearDateFilter?: () => void;
 }
 
 /**
@@ -30,6 +36,7 @@ export const ActivitiesHeader: React.FC<ActivitiesHeaderProps> = ({
   setViewMode,
   onNewActivity,
   dateFilter = 'ALL',
+  onClearDateFilter,
 }) => {
   const filterLabel =
     dateFilter === 'overdue'
@@ -49,8 +56,19 @@ export const ActivitiesHeader: React.FC<ActivitiesHeaderProps> = ({
         <div className="mt-1 flex items-center gap-2">
           <p className="text-slate-500 dark:text-slate-400">Gerencie suas tarefas e compromissos</p>
           {filterLabel && (
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300">
+            <span className="inline-flex items-center gap-1 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300">
               Filtro: {filterLabel}
+              {onClearDateFilter && (
+                <button
+                  type="button"
+                  onClick={onClearDateFilter}
+                  aria-label="Limpar filtro"
+                  title="Limpar filtro"
+                  className="rounded-full p-0.5 hover:bg-primary-200 dark:hover:bg-primary-500/40 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </span>
           )}
         </div>

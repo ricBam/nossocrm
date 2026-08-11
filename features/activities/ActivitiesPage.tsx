@@ -32,6 +32,7 @@ export const ActivitiesPage: React.FC = () => {
         filterType,
         setFilterType,
         dateFilter,
+        clearDateFilter,
         currentDate,
         setCurrentDate,
         isModalOpen,
@@ -111,6 +112,7 @@ export const ActivitiesPage: React.FC = () => {
                 setViewMode={setViewMode}
                 onNewActivity={() => handleNewActivity()}
                 dateFilter={dateFilter}
+                onClearDateFilter={clearDateFilter}
             />
 
             {viewMode === 'list' && (
