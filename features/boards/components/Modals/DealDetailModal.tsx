@@ -1303,16 +1303,30 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
     </>
   );
 
+  // The delete-confirmation dialog (ConfirmDialog, built on Radix AlertDialog)
+  // is teleported via Portal to document.body, outside this modal's own
+  // FocusTrap container. If the trap below stays active while it's open, it
+  // treats every click inside that portaled dialog as an "outside click" and
+  // silently swallows it (its buttons render and hover, but do nothing) —
+  // Radix already traps focus within its own dialog correctly, so we release
+  // this outer trap while it's showing.
+  const isNestedDialogOpen = Boolean(deleteId);
+
   if (isMobile) {
     return (
-      <DealSheet isOpen={isOpen} onClose={onClose} ariaLabel={`Negócio: ${deal.title}`}>
+      <DealSheet
+        isOpen={isOpen}
+        onClose={onClose}
+        ariaLabel={`Negócio: ${deal.title}`}
+        focusTrapActive={isOpen && !isNestedDialogOpen}
+      >
         <div onKeyDown={handleKeyDown}>{inner}</div>
       </DealSheet>
     );
   }
 
   return (
-    <FocusTrap active={isOpen} onEscape={onClose}>
+    <FocusTrap active={isOpen && !isNestedDialogOpen} onEscape={onClose}>
       <div
         // Backdrop + positioning wrapper. Clicking outside the panel should close the modal.
         // No desktop, este modal não deve cobrir a sidebar de navegação.

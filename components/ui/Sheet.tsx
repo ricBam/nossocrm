@@ -18,9 +18,21 @@ export interface SheetProps {
   ariaLabel?: string;
   /** Extra classes for the panel */
   className?: string;
+  /**
+   * Whether the sheet's own FocusTrap should be active. Defaults to `isOpen`.
+   *
+   * Pass `false` while a nested Radix Dialog/AlertDialog is open on top of
+   * this sheet's content (e.g. a delete-confirmation dialog): Radix portals
+   * that content to `document.body`, outside this trap's DOM container, so
+   * leaving this trap active would treat clicks inside the nested dialog as
+   * "outside clicks" and silently swallow them. Radix already implements its
+   * own accessible focus trap for that content, so releasing this outer one
+   * while it's open is safe.
+   */
+  focusTrapActive?: boolean;
 }
 
-export function Sheet({ isOpen, onClose, children, ariaLabel, className }: SheetProps) {
+export function Sheet({ isOpen, onClose, children, ariaLabel, className, focusTrapActive }: SheetProps) {
   useFocusReturn({ enabled: isOpen });
 
   const handleBackdropClick = useCallback(
@@ -35,7 +47,7 @@ export function Sheet({ isOpen, onClose, children, ariaLabel, className }: Sheet
   return (
     <AnimatePresence>
       {isOpen ? (
-        <FocusTrap active={isOpen} onEscape={handleEscape} returnFocus={true}>
+        <FocusTrap active={focusTrapActive ?? isOpen} onEscape={handleEscape} returnFocus={true}>
           <motion.div
             className={cn(
               'fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm',
