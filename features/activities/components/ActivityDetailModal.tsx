@@ -125,16 +125,19 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
         className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-5 border-b border-slate-200 dark:border-white/10 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg">
+        <div className="p-5 border-b border-slate-200 dark:border-white/10 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg shrink-0">
               {getActivityIcon(activity.type)}
             </span>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display truncate">
+            <h2
+              className="text-lg font-bold text-slate-900 dark:text-white font-display truncate"
+              title={activity.title}
+            >
               {activity.title}
             </h2>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => onEdit(activity)}
               className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"

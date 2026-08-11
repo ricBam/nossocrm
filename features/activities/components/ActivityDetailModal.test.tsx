@@ -115,6 +115,40 @@ describe('ActivityDetailModal — visualização somente leitura', () => {
     expect(onEdit).toHaveBeenCalledWith(activity);
   });
 
+  it('com título muito longo, o botão de fechar continua presente e clicável (bug do fundador, 2026-08-11)', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const longTitleActivity: Activity = {
+      ...activity,
+      title:
+        'Título de atividade extremamente longo criado só para reproduzir o bug relatado pelo fundador em produção, onde o botão de fechar do modal desaparecia da tela quando o título da atividade era grande demais para caber no cabeçalho'.repeat(1),
+    };
+    expect(longTitleActivity.title.length).toBeGreaterThan(150);
+
+    render(
+      <ActivityDetailModal
+        isOpen={true}
+        onClose={onClose}
+        onEdit={vi.fn()}
+        activity={longTitleActivity}
+        deal={deal}
+      />
+    );
+
+    const closeButton = screen.getByTitle('Fechar');
+    expect(closeButton).toBeInTheDocument();
+    expect(closeButton).toBeVisible();
+
+    await user.click(closeButton);
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // O título deve truncar (elipse via CSS) em vez de empurrar o botão de
+    // fechar para fora do header — garante que a classe/atributo corretos
+    // continuam presentes mesmo que jsdom/happy-dom não calcule layout real.
+    const heading = screen.getByTitle(longTitleActivity.title);
+    expect(heading.className).toContain('truncate');
+  });
+
   it('retorna null quando isOpen é false', () => {
     const { container } = render(
       <ActivityDetailModal
