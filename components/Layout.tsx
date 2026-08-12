@@ -44,7 +44,8 @@ import {
   Bug,
   CheckSquare,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -78,6 +79,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/activities': 'Atividades',
   '/decisions': 'Decisões',
   '/reports': 'Relatórios',
+  '/financial': 'Financeiro',
   '/settings': 'Configurações',
   '/profile': 'Perfil',
   '/ai': 'Assistente IA',
@@ -300,15 +302,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         <nav className={`flex-1 p-4 space-y-2 flex flex-col ${sidebarCollapsed ? 'items-center px-2' : ''}`} aria-label="Navegação do sistema">
           {[
-            { to: '/inbox', icon: Inbox, label: 'Inbox', prefetch: 'inbox' as const, badge: undefined },
-            { to: '/messaging', icon: MessageSquare, label: 'Mensagens', prefetch: undefined, badge: unreadMessagesCount },
-            { to: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral', prefetch: 'dashboard' as const, badge: undefined },
-            { to: '/boards', icon: KanbanSquare, label: 'Boards', prefetch: 'boards' as const, badge: undefined },
-            { to: '/contacts', icon: Users, label: 'Contatos', prefetch: 'contacts' as const, badge: undefined },
-            { to: '/activities', icon: CheckSquare, label: 'Atividades', prefetch: 'activities' as const, badge: undefined },
-            { to: '/reports', icon: BarChart3, label: 'Relatórios', prefetch: 'reports' as const, badge: undefined },
-            { to: '/settings', icon: Settings, label: 'Configurações', prefetch: 'settings' as const, badge: undefined },
-          ].map((item) => {
+            { to: '/inbox', icon: Inbox, label: 'Inbox', prefetch: 'inbox' as const, badge: undefined, adminOnly: false },
+            { to: '/messaging', icon: MessageSquare, label: 'Mensagens', prefetch: undefined, badge: unreadMessagesCount, adminOnly: false },
+            { to: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral', prefetch: 'dashboard' as const, badge: undefined, adminOnly: false },
+            { to: '/boards', icon: KanbanSquare, label: 'Boards', prefetch: 'boards' as const, badge: undefined, adminOnly: false },
+            { to: '/contacts', icon: Users, label: 'Contatos', prefetch: 'contacts' as const, badge: undefined, adminOnly: false },
+            { to: '/activities', icon: CheckSquare, label: 'Atividades', prefetch: 'activities' as const, badge: undefined, adminOnly: false },
+            { to: '/reports', icon: BarChart3, label: 'Relatórios', prefetch: 'reports' as const, badge: undefined, adminOnly: false },
+            { to: '/financial', icon: Wallet, label: 'Financeiro', prefetch: undefined, badge: undefined, adminOnly: true },
+            { to: '/settings', icon: Settings, label: 'Configurações', prefetch: 'settings' as const, badge: undefined, adminOnly: false },
+          ].filter((item) => !item.adminOnly || profile?.role === 'admin').map((item) => {
             if (sidebarCollapsed) {
               return (
                 <TooltipProvider key={item.to} delayDuration={200}>
