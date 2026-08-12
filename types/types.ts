@@ -530,3 +530,64 @@ export interface ContactsServerFilters {
 
 /** Colunas ordenáveis na tabela de contatos. */
 export type ContactSortableColumn = 'name' | 'created_at' | 'updated_at' | 'stage';
+
+// ITEM: Financeiro (Módulo interno de contabilidade da empresa)
+export type FinancialTransactionType = 'receita' | 'despesa';
+export type FinancialLedgerSource = 'manual' | 'recorrente' | 'deal';
+
+export interface FinancialLedgerEntry {
+  organizationId: OrganizationId;
+  type: FinancialTransactionType;
+  description: string;
+  amount: number;
+  category: string;
+  date: string; // ISO date (YYYY-MM-DD)
+  source: FinancialLedgerSource;
+  sourceId: string;
+}
+
+export interface FinancialTransaction {
+  id: string;
+  organizationId: OrganizationId;
+  type: FinancialTransactionType;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  source: 'manual' | 'recorrente';
+  recurringId?: string;
+  createdAt: string;
+}
+
+export interface FinancialRecurringExpense {
+  id: string;
+  organizationId: OrganizationId;
+  name: string;
+  amount: number;
+  category: string;
+  dayOfMonth: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface FinancialBucket {
+  id: string;
+  organizationId: OrganizationId;
+  name: string;
+  goalAmount?: number;
+  color: string;
+  archivedAt?: string;
+  /** Computado no service layer a partir da soma de financial_bucket_movements. */
+  balance: number;
+  createdAt: string;
+}
+
+export interface FinancialBucketMovement {
+  id: string;
+  bucketId: string;
+  organizationId: OrganizationId;
+  amount: number;
+  note?: string;
+  date: string;
+  createdAt: string;
+}

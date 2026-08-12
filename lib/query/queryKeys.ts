@@ -231,6 +231,21 @@ export const queryKeys = {
      * Org-level + user settings query keys.
      */
     orgSettings: createQueryKeys('orgSettings'),
+
+    /**
+     * Financial module query keys (ledger, recurring expenses, buckets).
+     */
+    financial: {
+        ledger: {
+            all: ['financial', 'ledger'] as const,
+            byPeriod: (startISO: string, endISO: string) =>
+                ['financial', 'ledger', 'byPeriod', startISO, endISO] as const,
+        },
+        recurring: createQueryKeys('financialRecurring'),
+        buckets: createExtendedQueryKeys('financialBuckets', base => ({
+            movements: (bucketId: string) => [...base.all, 'movements', bucketId] as const,
+        })),
+    },
 };
 
 /**

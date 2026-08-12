@@ -208,6 +208,52 @@ export const aiConfigSchema = z.object({
 
 export type AIConfigFormData = z.infer<typeof aiConfigSchema>;
 
+// ============ FINANCIAL SCHEMAS ============
+
+const positiveCurrencySchema = currencySchema.pipe(
+  z.number().gt(0, msg('NUMBER_MUST_BE_POSITIVE', { field: 'Valor' }))
+);
+
+export const financialTransactionFormSchema = z.object({
+  type: z.enum(['receita', 'despesa'], { message: msg('FIELD_REQUIRED', { field: 'Tipo' }) }),
+  description: requiredString('Descrição', MAX_LENGTHS.TITLE),
+  amount: positiveCurrencySchema,
+  category: requiredString('Categoria', MAX_LENGTHS.SHORT_TEXT),
+  date: requiredString('Data', 10),
+});
+export type FinancialTransactionFormData = z.infer<typeof financialTransactionFormSchema>;
+
+export const financialRecurringExpenseFormSchema = z.object({
+  name: requiredString('Nome', MAX_LENGTHS.TITLE),
+  amount: positiveCurrencySchema,
+  category: requiredString('Categoria', MAX_LENGTHS.SHORT_TEXT),
+  dayOfMonth: z.coerce
+    .number({ message: msg('NUMBER_REQUIRED', { field: 'Dia do mês' }) })
+    .int()
+    .min(1, 'Dia do mês deve ser entre 1 e 28')
+    .max(28, 'Dia do mês deve ser entre 1 e 28'),
+});
+export type FinancialRecurringExpenseFormData = z.infer<typeof financialRecurringExpenseFormSchema>;
+
+export const financialBucketFormSchema = z.object({
+  name: requiredString('Nome do cofrinho', MAX_LENGTHS.TITLE),
+  goalAmount: z.coerce
+    .number({ message: msg('NUMBER_REQUIRED', { field: 'Meta' }) })
+    .min(0, msg('NUMBER_MUST_BE_POSITIVE', { field: 'Meta' }))
+    .optional(),
+  color: requiredString('Cor', 20),
+});
+export type FinancialBucketFormData = z.infer<typeof financialBucketFormSchema>;
+
+export const financialBucketMovementFormSchema = z.object({
+  amount: z.coerce
+    .number({ message: msg('NUMBER_REQUIRED', { field: 'Valor' }) })
+    .refine(val => val !== 0, 'Valor não pode ser zero'),
+  note: optionalString,
+  date: requiredString('Data', 10),
+});
+export type FinancialBucketMovementFormData = z.infer<typeof financialBucketMovementFormSchema>;
+
 // Export max lengths for use in forms
 export { MAX_LENGTHS };
 
