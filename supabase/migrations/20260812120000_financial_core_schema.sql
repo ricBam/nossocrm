@@ -76,8 +76,11 @@ CREATE INDEX IF NOT EXISTS idx_financial_transactions_org_date
 -- Índice único parcial: garante que o job de recorrência nunca gere duas
 -- ocorrências da mesma despesa recorrente no mesmo mês (usado no ON CONFLICT
 -- da função criada na próxima migration).
+-- Cast explícito para timestamp (não timestamptz): date_trunc(text, timestamptz)
+-- é STABLE (depende do timezone da sessão) e não pode ser usado em índice;
+-- date_trunc(text, timestamp) é IMMUTABLE.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_transactions_recurring_month
-  ON public.financial_transactions (recurring_id, (date_trunc('month', date)))
+  ON public.financial_transactions (recurring_id, (date_trunc('month', date::timestamp)))
   WHERE recurring_id IS NOT NULL;
 
 ALTER TABLE public.financial_transactions ENABLE ROW LEVEL SECURITY;

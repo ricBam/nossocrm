@@ -56,7 +56,7 @@ BEGIN
   FROM public.financial_recurring_expenses
   WHERE active = TRUE
     AND day_of_month = EXTRACT(DAY FROM CURRENT_DATE)::int
-  ON CONFLICT (recurring_id, (date_trunc('month', date))) WHERE recurring_id IS NOT NULL
+  ON CONFLICT (recurring_id, (date_trunc('month', date::timestamp))) WHERE recurring_id IS NOT NULL
   DO NOTHING;
 END;
 $$;
