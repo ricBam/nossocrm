@@ -124,6 +124,8 @@ export interface DbDealItem {
   quantity: number;
   /** Preço unitário. */
   price: number;
+  /** Se true, vira receita recorrente mensal quando o deal é ganho. */
+  is_recurring?: boolean;
   /** Data de criação. */
   created_at: string;
 }
@@ -184,6 +186,7 @@ const transformDeal = (db: DbDeal | DbDealWithItems, items?: DbDealItem[]): Deal
       name: i.name,
       quantity: i.quantity,
       price: i.price,
+      isRecurring: i.is_recurring ?? false,
     })),
     owner: { name: 'Sem Dono', avatar: '' }, // Will be enriched later
     ownerId: db.owner_id || undefined,
@@ -296,7 +299,7 @@ export const dealsService = {
       }
       const [dealResult, itemsResult] = await Promise.all([
         supabase.from('deals').select('*').eq('id', id).maybeSingle(),
-        supabase.from('deal_items').select('id, organization_id, deal_id, product_id, name, quantity, price, unit, discount, total, created_at, updated_at').eq('deal_id', id),
+        supabase.from('deal_items').select('id, organization_id, deal_id, product_id, name, quantity, price, is_recurring, unit, discount, total, created_at, updated_at').eq('deal_id', id),
       ]);
 
       if (dealResult.error) return { data: null, error: dealResult.error };
@@ -426,6 +429,7 @@ export const dealsService = {
           name: item.name,
           quantity: item.quantity,
           price: item.price,
+          is_recurring: item.isRecurring ?? false,
         }));
 
         const { error: itemsError } = await supabase
@@ -438,7 +442,7 @@ export const dealsService = {
       // Fetch items
       const { data: items } = await supabase
         .from('deal_items')
-        .select('id, organization_id, deal_id, product_id, name, quantity, price, unit, discount, total, created_at, updated_at')
+        .select('id, organization_id, deal_id, product_id, name, quantity, price, is_recurring, unit, discount, total, created_at, updated_at')
         .eq('deal_id', data.id);
 
       return {
@@ -527,6 +531,7 @@ export const dealsService = {
           name: item.name,
           quantity: item.quantity,
           price: item.price,
+          is_recurring: item.isRecurring ?? false,
           ...(organizationId ? { organization_id: organizationId } : {}),
         })
         .select()
@@ -544,6 +549,7 @@ export const dealsService = {
           name: data.name,
           quantity: data.quantity,
           price: data.price,
+          isRecurring: data.is_recurring ?? false,
         },
         error: null,
       };

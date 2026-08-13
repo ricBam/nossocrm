@@ -158,10 +158,12 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
 
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productQuantity, setProductQuantity] = useState(1);
+  const [productIsRecurring, setProductIsRecurring] = useState(false);
   const [showCustomItem, setShowCustomItem] = useState(false);
   const [customItemName, setCustomItemName] = useState('');
   const [customItemPrice, setCustomItemPrice] = useState<string>('0');
   const [customItemQuantity, setCustomItemQuantity] = useState(1);
+  const [customItemIsRecurring, setCustomItemIsRecurring] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showLossReasonModal, setShowLossReasonModal] = useState(false);
@@ -344,10 +346,12 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
       name: product.name,
       price: product.price,
       quantity: productQuantity,
+      isRecurring: productIsRecurring,
     });
 
     setSelectedProductId('');
     setProductQuantity(1);
+    setProductIsRecurring(false);
   };
 
   const handleAddCustomItem = () => {
@@ -373,11 +377,13 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
       name,
       price,
       quantity: qty,
+      isRecurring: customItemIsRecurring,
     });
 
     setCustomItemName('');
     setCustomItemPrice('0');
     setCustomItemQuantity(1);
+    setCustomItemIsRecurring(false);
     setShowCustomItem(false);
   };
 
@@ -965,6 +971,15 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                         </button>
                       </div>
 
+                      <label className="mt-3 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={productIsRecurring}
+                          onChange={e => setProductIsRecurring(e.target.checked)}
+                        />
+                        Receita recorrente mensal (ao ganhar o negócio, entra no Financeiro todo mês a partir do mês seguinte)
+                      </label>
+
                       <div className="mt-3 flex items-center justify-between gap-3">
                         <div className="text-xs text-slate-500 dark:text-slate-400">
                           Produto depende do cliente? Use um item personalizado (não precisa estar no catálogo).
@@ -1019,6 +1034,14 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                               </button>
                             </div>
                           </div>
+                          <label className="mt-3 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={customItemIsRecurring}
+                              onChange={e => setCustomItemIsRecurring(e.target.checked)}
+                            />
+                            Receita recorrente mensal
+                          </label>
                         </div>
                       )}
                     </div>
@@ -1046,6 +1069,11 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                               <tr key={item.id}>
                                 <td className="px-4 py-3 text-slate-900 dark:text-white font-medium">
                                   {item.name}
+                                  {item.isRecurring && (
+                                    <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-success-bg text-success-text align-middle">
+                                      Mensal
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-300">
                                   {item.quantity}

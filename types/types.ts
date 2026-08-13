@@ -195,6 +195,8 @@ export interface DealItem {
   name: string; // Snapshot of name
   quantity: number;
   price: number; // Snapshot of price
+  /** Quando true, ao ganhar o deal este item vira receita recorrente mensal no Financeiro. */
+  isRecurring?: boolean;
 }
 
 // CUSTOM FIELDS DEFINITION
@@ -566,6 +568,19 @@ export interface FinancialRecurringExpense {
   amount: number;
   category: string;
   dayOfMonth: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface FinancialRecurringRevenue {
+  id: string;
+  organizationId: OrganizationId;
+  dealId?: string;
+  name: string;
+  amount: number;
+  category: string;
+  dayOfMonth: number;
+  startsAt: string;
   active: boolean;
   createdAt: string;
 }
