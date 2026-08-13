@@ -212,3 +212,43 @@ export const useDeleteFinancialCategory = () => {
     },
   });
 };
+
+export const useRecurringRevenue = () => {
+  const { enabled } = useIsFinancialAdmin();
+  return useQuery({
+    queryKey: queryKeys.financial.recurringRevenue.lists(),
+    queryFn: async () => {
+      const { data, error } = await financialService.getRecurringRevenue();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 60 * 1000,
+    enabled,
+  });
+};
+
+export const useUpdateRecurringRevenue = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<{ active: boolean }> }) => {
+      const { error } = await financialService.updateRecurringRevenue(id, updates);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.financial.recurringRevenue.all });
+    },
+  });
+};
+
+export const useDeleteRecurringRevenue = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await financialService.deleteRecurringRevenue(id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.financial.recurringRevenue.all });
+    },
+  });
+};

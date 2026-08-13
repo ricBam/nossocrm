@@ -242,6 +242,7 @@ export const queryKeys = {
                 ['financial', 'ledger', 'byPeriod', startISO, endISO] as const,
         },
         recurring: createQueryKeys('financialRecurring'),
+        recurringRevenue: createQueryKeys('financialRecurringRevenue'),
         buckets: createExtendedQueryKeys('financialBuckets', base => ({
             movements: (bucketId: string) => [...base.all, 'movements', bucketId] as const,
         })),

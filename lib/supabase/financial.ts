@@ -4,6 +4,7 @@ import type {
   FinancialLedgerEntry,
   FinancialTransaction,
   FinancialRecurringExpense,
+  FinancialRecurringRevenue,
   FinancialBucket,
   FinancialBucketMovement,
   FinancialCategory,
@@ -92,6 +93,21 @@ function transformCategory(db: any): FinancialCategory {
     name: db.name,
     type: db.type,
     color: db.color,
+    createdAt: db.created_at,
+  };
+}
+
+function transformRecurringRevenue(db: any): FinancialRecurringRevenue {
+  return {
+    id: db.id,
+    organizationId: db.organization_id,
+    dealId: db.deal_id || undefined,
+    name: db.name,
+    amount: Number(db.amount ?? 0),
+    category: db.category,
+    dayOfMonth: db.day_of_month,
+    startsAt: db.starts_at,
+    active: db.active,
     createdAt: db.created_at,
   };
 }
@@ -388,6 +404,45 @@ export const financialService = {
     try {
       if (!supabase) return { error: new Error('Supabase não configurado') };
       const { error } = await supabase.from('financial_categories').delete().eq('id', id);
+      return { error: error ?? null };
+    } catch (e) {
+      return { error: e as Error };
+    }
+  },
+
+  // Receita recorrente é criada automaticamente por um trigger no banco quando
+  // um deal com itens marcados is_recurring é ganho — não há createRecurringRevenue
+  // aqui, só leitura/pausa/exclusão.
+  async getRecurringRevenue(): Promise<{ data: FinancialRecurringRevenue[]; error: Error | null }> {
+    try {
+      if (!supabase) return { data: [], error: new Error('Supabase não configurado') };
+      const { data, error } = await supabase
+        .from('financial_recurring_revenue')
+        .select('id, organization_id, deal_id, name, amount, category, day_of_month, starts_at, active, created_at')
+        .order('name', { ascending: true });
+      if (error) return { data: [], error };
+      return { data: (data || []).map(transformRecurringRevenue), error: null };
+    } catch (e) {
+      return { data: [], error: e as Error };
+    }
+  },
+
+  async updateRecurringRevenue(id: string, updates: Partial<{ active: boolean }>): Promise<{ error: Error | null }> {
+    try {
+      if (!supabase) return { error: new Error('Supabase não configurado') };
+      const payload: Record<string, unknown> = {};
+      if (updates.active !== undefined) payload.active = updates.active;
+      const { error } = await supabase.from('financial_recurring_revenue').update(payload).eq('id', id);
+      return { error: error ?? null };
+    } catch (e) {
+      return { error: e as Error };
+    }
+  },
+
+  async deleteRecurringRevenue(id: string): Promise<{ error: Error | null }> {
+    try {
+      if (!supabase) return { error: new Error('Supabase não configurado') };
+      const { error } = await supabase.from('financial_recurring_revenue').delete().eq('id', id);
       return { error: error ?? null };
     } catch (e) {
       return { error: e as Error };
