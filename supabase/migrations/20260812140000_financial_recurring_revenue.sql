@@ -107,6 +107,9 @@ BEGIN
 END;
 $$;
 
+-- Função de trigger — não deve ser chamável diretamente via RPC.
+REVOKE EXECUTE ON FUNCTION public.create_recurring_revenue_from_deal() FROM PUBLIC, anon, authenticated;
+
 DROP TRIGGER IF EXISTS trg_deal_won_create_recurring_revenue ON public.deals;
 CREATE TRIGGER trg_deal_won_create_recurring_revenue
   AFTER UPDATE ON public.deals
