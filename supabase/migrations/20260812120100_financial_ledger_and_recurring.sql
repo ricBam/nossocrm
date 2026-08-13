@@ -76,6 +76,6 @@ BEGIN
     'SELECT public.generate_recurring_financial_transactions();'
   );
   RAISE NOTICE 'Created cron job: financial-recurring-expenses (daily 06:00 UTC)';
-EXCEPTION WHEN undefined_object THEN
+EXCEPTION WHEN undefined_object OR invalid_schema_name THEN
   RAISE NOTICE 'pg_cron extension not available. Call public.generate_recurring_financial_transactions() manually or wire an external scheduler.';
 END $$;
