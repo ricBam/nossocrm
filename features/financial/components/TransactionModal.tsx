@@ -4,9 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, ModalForm } from '@/components/ui/Modal';
 import { InputField, SelectField, SubmitButton } from '@/components/ui/FormField';
 import { financialTransactionFormSchema, type FinancialTransactionFormData } from '@/lib/validations/schemas';
+import { useFinancialCategories } from '@/lib/query/hooks/useFinancialQuery';
 
-const EXPENSE_CATEGORIES = ['Servidor', 'IA/Claude', 'Anúncios', 'Ferramentas', 'Outros'];
-const REVENUE_CATEGORIES = ['Vendas (fora do CRM)', 'Outros'];
 const CUSTOM_CATEGORY_VALUE = '__custom__';
 
 interface TransactionModalProps {
@@ -18,6 +17,7 @@ interface TransactionModalProps {
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
   const [useCustomCategory, setUseCustomCategory] = React.useState(false);
+  const { data: categories = [] } = useFinancialCategories();
   const form = useForm<FinancialTransactionFormData>({
     // @ts-expect-error - zodResolver type variance with coerced number fields, safe at runtime
     resolver: zodResolver(financialTransactionFormSchema),
@@ -32,7 +32,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
   const { register, handleSubmit, watch, formState: { errors }, reset } = form;
   const type = watch('type');
-  const categoryOptions = (type === 'receita' ? REVENUE_CATEGORIES : EXPENSE_CATEGORIES).map(c => ({ value: c, label: c }));
+  const categoryOptions = categories
+    .filter(c => c.type === type)
+    .map(c => ({ value: c.name, label: c.name }));
 
   React.useEffect(() => {
     if (isOpen) {

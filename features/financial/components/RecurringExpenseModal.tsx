@@ -4,8 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, ModalForm } from '@/components/ui/Modal';
 import { InputField, SelectField, SubmitButton } from '@/components/ui/FormField';
 import { financialRecurringExpenseFormSchema, type FinancialRecurringExpenseFormData } from '@/lib/validations/schemas';
-
-const EXPENSE_CATEGORIES = ['Servidor', 'IA/Claude', 'Anúncios', 'Ferramentas', 'Outros'];
+import { useFinancialCategories } from '@/lib/query/hooks/useFinancialQuery';
 
 interface RecurringExpenseModalProps {
   isOpen: boolean;
@@ -15,6 +14,8 @@ interface RecurringExpenseModalProps {
 }
 
 export const RecurringExpenseModal: React.FC<RecurringExpenseModalProps> = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
+  const { data: categories = [] } = useFinancialCategories();
+  const expenseCategories = categories.filter(c => c.type === 'despesa');
   const form = useForm<FinancialRecurringExpenseFormData>({
     // @ts-expect-error - zodResolver type variance with coerced number fields, safe at runtime
     resolver: zodResolver(financialRecurringExpenseFormSchema),
@@ -36,7 +37,7 @@ export const RecurringExpenseModal: React.FC<RecurringExpenseModalProps> = ({ is
       <ModalForm onSubmit={handleSubmit(handleFormSubmit)}>
         <InputField label="Nome" placeholder="Ex: Assinatura Claude" required error={errors.name} registration={register('name')} />
         <InputField label="Valor mensal (R$)" type="number" step="0.01" min="0" required error={errors.amount} registration={register('amount')} />
-        <SelectField label="Categoria" placeholder="Selecione..." required options={EXPENSE_CATEGORIES.map(c => ({ value: c, label: c }))} error={errors.category} registration={register('category')} />
+        <SelectField label="Categoria" placeholder="Selecione..." required options={expenseCategories.map(c => ({ value: c.name, label: c.name }))} error={errors.category} registration={register('category')} />
         <InputField label="Dia do mês da cobrança" type="number" min="1" max="28" hint="Entre 1 e 28, para evitar meses curtos." required error={errors.dayOfMonth} registration={register('dayOfMonth')} />
         <SubmitButton isLoading={isSubmitting}>Salvar despesa recorrente</SubmitButton>
       </ModalForm>
