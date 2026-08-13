@@ -245,6 +245,7 @@ export const queryKeys = {
         buckets: createExtendedQueryKeys('financialBuckets', base => ({
             movements: (bucketId: string) => [...base.all, 'movements', bucketId] as const,
         })),
+        categories: createQueryKeys('financialCategories'),
     },
 };
 

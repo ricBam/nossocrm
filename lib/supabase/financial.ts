@@ -6,6 +6,7 @@ import type {
   FinancialRecurringExpense,
   FinancialBucket,
   FinancialBucketMovement,
+  FinancialCategory,
 } from '@/types';
 
 let cachedOrgId: string | null = null;
@@ -80,6 +81,17 @@ function transformBucket(db: any, balance: number): FinancialBucket {
     color: db.color,
     archivedAt: db.archived_at || undefined,
     balance,
+    createdAt: db.created_at,
+  };
+}
+
+function transformCategory(db: any): FinancialCategory {
+  return {
+    id: db.id,
+    organizationId: db.organization_id,
+    name: db.name,
+    type: db.type,
+    color: db.color,
     createdAt: db.created_at,
   };
 }
@@ -206,6 +218,16 @@ export const financialService = {
     }
   },
 
+  async deleteRecurringExpense(id: string): Promise<{ error: Error | null }> {
+    try {
+      if (!supabase) return { error: new Error('Supabase não configurado') };
+      const { error } = await supabase.from('financial_recurring_expenses').delete().eq('id', id);
+      return { error: error ?? null };
+    } catch (e) {
+      return { error: e as Error };
+    }
+  },
+
   async getBucketsWithBalances(): Promise<{ data: FinancialBucket[]; error: Error | null }> {
     try {
       if (!supabase) return { data: [], error: new Error('Supabase não configurado') };
@@ -308,6 +330,67 @@ export const financialService = {
       };
     } catch (e) {
       return { data: null, error: e as Error };
+    }
+  },
+
+  async getCategories(): Promise<{ data: FinancialCategory[]; error: Error | null }> {
+    try {
+      if (!supabase) return { data: [], error: new Error('Supabase não configurado') };
+      const { data, error } = await supabase
+        .from('financial_categories')
+        .select('id, organization_id, name, type, color, created_at')
+        .order('name', { ascending: true });
+      if (error) return { data: [], error };
+      return { data: (data || []).map(transformCategory), error: null };
+    } catch (e) {
+      return { data: [], error: e as Error };
+    }
+  },
+
+  async createCategory(input: { name: string; type: 'receita' | 'despesa'; color: string }): Promise<{ data: FinancialCategory | null; error: Error | null }> {
+    try {
+      if (!supabase) return { data: null, error: new Error('Supabase não configurado') };
+      const { data: { user } } = await supabase.auth.getUser();
+      const organizationId = await getCurrentOrganizationId();
+      const { data, error } = await supabase
+        .from('financial_categories')
+        .insert({
+          name: input.name,
+          type: input.type,
+          color: input.color,
+          created_by: sanitizeUUID(user?.id),
+          organization_id: organizationId,
+        })
+        .select('id, organization_id, name, type, color, created_at')
+        .single();
+      if (error) return { data: null, error };
+      return { data: transformCategory(data), error: null };
+    } catch (e) {
+      return { data: null, error: e as Error };
+    }
+  },
+
+  async updateCategory(id: string, updates: Partial<{ name: string; type: 'receita' | 'despesa'; color: string }>): Promise<{ error: Error | null }> {
+    try {
+      if (!supabase) return { error: new Error('Supabase não configurado') };
+      const payload: Record<string, unknown> = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.type !== undefined) payload.type = updates.type;
+      if (updates.color !== undefined) payload.color = updates.color;
+      const { error } = await supabase.from('financial_categories').update(payload).eq('id', id);
+      return { error: error ?? null };
+    } catch (e) {
+      return { error: e as Error };
+    }
+  },
+
+  async deleteCategory(id: string): Promise<{ error: Error | null }> {
+    try {
+      if (!supabase) return { error: new Error('Supabase não configurado') };
+      const { error } = await supabase.from('financial_categories').delete().eq('id', id);
+      return { error: error ?? null };
+    } catch (e) {
+      return { error: e as Error };
     }
   },
 };

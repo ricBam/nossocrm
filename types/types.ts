@@ -591,3 +591,12 @@ export interface FinancialBucketMovement {
   date: string;
   createdAt: string;
 }
+
+export interface FinancialCategory {
+  id: string;
+  organizationId: OrganizationId;
+  name: string;
+  type: FinancialTransactionType;
+  color: string;
+  createdAt: string;
+}

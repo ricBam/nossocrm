@@ -91,6 +91,19 @@ export const useUpdateRecurringExpense = () => {
   });
 };
 
+export const useDeleteRecurringExpense = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await financialService.deleteRecurringExpense(id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.financial.recurring.all });
+    },
+  });
+};
+
 export const useFinancialBuckets = () => {
   const { enabled } = useIsFinancialAdmin();
   return useQuery({
@@ -142,6 +155,60 @@ export const useCreateBucketMovement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.financial.buckets.all });
+    },
+  });
+};
+
+export const useFinancialCategories = () => {
+  const { enabled } = useIsFinancialAdmin();
+  return useQuery({
+    queryKey: queryKeys.financial.categories.lists(),
+    queryFn: async () => {
+      const { data, error } = await financialService.getCategories();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled,
+  });
+};
+
+export const useCreateFinancialCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { name: string; type: 'receita' | 'despesa'; color: string }) => {
+      const { data, error } = await financialService.createCategory(input);
+      if (error) throw error;
+      return data!;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.financial.categories.all });
+    },
+  });
+};
+
+export const useUpdateFinancialCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<{ name: string; type: 'receita' | 'despesa'; color: string }> }) => {
+      const { error } = await financialService.updateCategory(id, updates);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.financial.categories.all });
+    },
+  });
+};
+
+export const useDeleteFinancialCategory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await financialService.deleteCategory(id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.financial.categories.all });
     },
   });
 };

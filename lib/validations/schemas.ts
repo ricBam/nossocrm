@@ -254,6 +254,13 @@ export const financialBucketMovementFormSchema = z.object({
 });
 export type FinancialBucketMovementFormData = z.infer<typeof financialBucketMovementFormSchema>;
 
+export const financialCategoryFormSchema = z.object({
+  name: requiredString('Nome da categoria', MAX_LENGTHS.SHORT_TEXT),
+  type: z.enum(['receita', 'despesa'], { message: msg('FIELD_REQUIRED', { field: 'Tipo' }) }),
+  color: requiredString('Cor', 20),
+});
+export type FinancialCategoryFormData = z.infer<typeof financialCategoryFormSchema>;
+
 // Export max lengths for use in forms
 export { MAX_LENGTHS };
 
