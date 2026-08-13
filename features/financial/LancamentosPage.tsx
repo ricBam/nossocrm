@@ -11,6 +11,9 @@ import {
   useCreateRecurringExpense,
   useUpdateRecurringExpense,
   useDeleteRecurringExpense,
+  useRecurringRevenue,
+  useUpdateRecurringRevenue,
+  useDeleteRecurringRevenue,
 } from '@/lib/query/hooks/useFinancialQuery';
 import { StatCard } from '@/features/dashboard/components/StatCard';
 import { PeriodFilterSelect } from '@/components/filters/PeriodFilterSelect';
@@ -35,12 +38,15 @@ const LancamentosPage: React.FC = () => {
   const range = React.useMemo(() => periodToDateRange(period), [period]);
   const { data: entries = [], isLoading } = useFinancialLedger(range.start, range.end);
   const { data: recurring = [] } = useRecurringExpenses();
+  const { data: recurringRevenue = [] } = useRecurringRevenue();
 
   const createTransaction = useCreateFinancialTransaction();
   const deleteTransaction = useDeleteFinancialTransaction();
   const createRecurring = useCreateRecurringExpense();
   const updateRecurring = useUpdateRecurringExpense();
   const deleteRecurring = useDeleteRecurringExpense();
+  const updateRecurringRevenue = useUpdateRecurringRevenue();
+  const deleteRecurringRevenue = useDeleteRecurringRevenue();
 
   const availableCategories = React.useMemo(
     () => Array.from(new Set(entries.map(e => e.category))).sort(),
@@ -114,6 +120,20 @@ const LancamentosPage: React.FC = () => {
     });
   };
 
+  const handleToggleRecurringRevenue = (id: string, active: boolean) => {
+    updateRecurringRevenue.mutate({ id, updates: { active: !active } }, {
+      onError: () => addToast('Erro ao atualizar receita recorrente', 'error'),
+    });
+  };
+
+  const handleDeleteRecurringRevenue = (id: string, name: string) => {
+    if (!window.confirm(`Excluir a receita recorrente "${name}"? Ocorrências já lançadas no histórico não são apagadas.`)) return;
+    deleteRecurringRevenue.mutate(id, {
+      onSuccess: () => addToast('Receita recorrente excluída', 'success'),
+      onError: () => addToast('Erro ao excluir receita recorrente', 'error'),
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
@@ -183,6 +203,33 @@ const LancamentosPage: React.FC = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 dark:border-white/5">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display">Receita recorrente</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Criada automaticamente quando um deal com item "mensal" é ganho.</p>
+        </div>
+        <div className="divide-y divide-slate-100 dark:divide-white/5">
+          {recurringRevenue.length === 0 && <p className="p-5 text-sm text-slate-400">Nenhuma receita recorrente ainda.</p>}
+          {recurringRevenue.map(r => (
+            <div key={r.id} className="flex items-center justify-between px-5 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">{r.name}</p>
+                <p className="text-xs text-slate-500">{r.category} · todo dia {r.dayOfMonth} · {formatBRL(r.amount)} · a partir de {formatDateBR(r.startsAt)}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-xs">
+                  <input type="checkbox" checked={r.active} onChange={() => handleToggleRecurringRevenue(r.id, r.active)} />
+                  Ativa
+                </label>
+                <button onClick={() => handleDeleteRecurringRevenue(r.id, r.name)} className="text-slate-400 hover:text-error-text" aria-label={`Excluir receita recorrente ${r.name}`}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
