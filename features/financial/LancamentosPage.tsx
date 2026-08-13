@@ -18,6 +18,7 @@ import { formatBRL, formatDateBR } from '@/lib/utils/formatCurrency';
 import { Plus, Trash2, Lock } from 'lucide-react';
 import { TransactionModal } from './components/TransactionModal';
 import { RecurringExpenseModal } from './components/RecurringExpenseModal';
+import { FinancialSubNav } from './components/FinancialSubNav';
 
 const LancamentosPage: React.FC = () => {
   const { profile, loading: authLoading } = useAuth();
@@ -93,6 +94,8 @@ const LancamentosPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <FinancialSubNav />
 
       <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
         <table className="w-full text-sm">

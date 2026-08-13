@@ -13,6 +13,7 @@ import { Plus, Lock } from 'lucide-react';
 import { BucketCard } from './components/BucketCard';
 import { BucketFormModal } from './components/BucketFormModal';
 import { BucketMovementModal } from './components/BucketMovementModal';
+import { FinancialSubNav } from './components/FinancialSubNav';
 import type { FinancialBucket } from '@/types';
 
 const CofrinhosPage: React.FC = () => {
@@ -78,6 +79,8 @@ const CofrinhosPage: React.FC = () => {
           <Plus size={16} /> Novo cofrinho
         </button>
       </div>
+
+      <FinancialSubNav />
 
       {isLoading && <p className="text-sm text-slate-400">Carregando...</p>}
       {!isLoading && buckets.length === 0 && <p className="text-sm text-slate-400">Nenhum cofrinho criado ainda.</p>}

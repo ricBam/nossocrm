@@ -15,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, Lock } from 'lucide-react';
 import { RevenueExpenseChart } from './components/RevenueExpenseChart';
 import { ExpenseByCategoryChart } from './components/ExpenseByCategoryChart';
+import { FinancialSubNav } from './components/FinancialSubNav';
 import type { FinancialLedgerEntry } from '@/types';
 
 function formatChange(value: number): { text: string; isPositive: boolean } {
@@ -99,6 +100,8 @@ const FinancialDashboardPage: React.FC = () => {
         </div>
         <PeriodFilterSelect value={period} onChange={setPeriod} />
       </div>
+
+      <FinancialSubNav />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard title="Receita" value={formatBRL(receita)} subtext={revenueChange.text} subtextPositive={revenueChange.isPositive} icon={TrendingUp} variant="success" comparisonLabel={COMPARISON_LABELS[period]} />
