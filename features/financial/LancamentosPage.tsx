@@ -10,20 +10,25 @@ import {
   useRecurringExpenses,
   useCreateRecurringExpense,
   useUpdateRecurringExpense,
+  useDeleteRecurringExpense,
 } from '@/lib/query/hooks/useFinancialQuery';
+import { StatCard } from '@/features/dashboard/components/StatCard';
 import { PeriodFilterSelect } from '@/components/filters/PeriodFilterSelect';
 import { PeriodFilter } from '@/features/dashboard/hooks/useDashboardMetrics';
 import { periodToDateRange } from '@/lib/utils/periodToDateRange';
 import { formatBRL, formatDateBR } from '@/lib/utils/formatCurrency';
-import { Plus, Trash2, Lock } from 'lucide-react';
+import { Plus, Trash2, Lock, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { TransactionModal } from './components/TransactionModal';
 import { RecurringExpenseModal } from './components/RecurringExpenseModal';
 import { FinancialSubNav } from './components/FinancialSubNav';
+
+const ALL_CATEGORIES_VALUE = '__all__';
 
 const LancamentosPage: React.FC = () => {
   const { profile, loading: authLoading } = useAuth();
   const { addToast } = useToast();
   const [period, setPeriod] = React.useState<PeriodFilter>('this_month');
+  const [categoryFilter, setCategoryFilter] = React.useState(ALL_CATEGORIES_VALUE);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = React.useState(false);
   const [isRecurringModalOpen, setIsRecurringModalOpen] = React.useState(false);
 
@@ -35,6 +40,27 @@ const LancamentosPage: React.FC = () => {
   const deleteTransaction = useDeleteFinancialTransaction();
   const createRecurring = useCreateRecurringExpense();
   const updateRecurring = useUpdateRecurringExpense();
+  const deleteRecurring = useDeleteRecurringExpense();
+
+  const availableCategories = React.useMemo(
+    () => Array.from(new Set(entries.map(e => e.category))).sort(),
+    [entries]
+  );
+
+  const filteredEntries = React.useMemo(
+    () => (categoryFilter === ALL_CATEGORIES_VALUE ? entries : entries.filter(e => e.category === categoryFilter)),
+    [entries, categoryFilter]
+  );
+
+  const receita = React.useMemo(() => entries.filter(e => e.type === 'receita').reduce((acc, e) => acc + e.amount, 0), [entries]);
+  const despesa = React.useMemo(() => entries.filter(e => e.type === 'despesa').reduce((acc, e) => acc + e.amount, 0), [entries]);
+  const saldo = receita - despesa;
+
+  React.useEffect(() => {
+    if (categoryFilter !== ALL_CATEGORIES_VALUE && !availableCategories.includes(categoryFilter)) {
+      setCategoryFilter(ALL_CATEGORIES_VALUE);
+    }
+  }, [availableCategories, categoryFilter]);
 
   if (!authLoading && profile?.role !== 'admin') {
     return (
@@ -80,6 +106,14 @@ const LancamentosPage: React.FC = () => {
     });
   };
 
+  const handleDeleteRecurring = (id: string, name: string) => {
+    if (!window.confirm(`Excluir a despesa recorrente "${name}"? Ocorrências já lançadas no histórico não são apagadas.`)) return;
+    deleteRecurring.mutate(id, {
+      onSuccess: () => addToast('Despesa recorrente excluída', 'success'),
+      onError: () => addToast('Erro ao excluir despesa recorrente', 'error'),
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
@@ -97,7 +131,26 @@ const LancamentosPage: React.FC = () => {
 
       <FinancialSubNav />
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard title="Receita" value={formatBRL(receita)} subtext={`${entries.filter(e => e.type === 'receita').length} lançamento(s)`} subtextPositive icon={TrendingUp} variant="success" comparisonLabel="no período" />
+        <StatCard title="Despesa" value={formatBRL(despesa)} subtext={`${entries.filter(e => e.type === 'despesa').length} lançamento(s)`} subtextPositive icon={TrendingDown} variant="danger" comparisonLabel="no período" />
+        <StatCard title="Saldo" value={formatBRL(saldo)} subtext={`${entries.length} total`} subtextPositive={saldo >= 0} icon={Wallet} variant="primary" comparisonLabel="no período" />
+      </div>
+
       <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
+        <div className="p-3 border-b border-slate-100 dark:border-white/5 flex justify-end">
+          <select
+            value={categoryFilter}
+            onChange={e => setCategoryFilter(e.target.value)}
+            aria-label="Filtrar por categoria"
+            className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value={ALL_CATEGORIES_VALUE}>Todas as categorias</option>
+            {availableCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-slate-50 dark:bg-white/5 text-left text-xs uppercase text-slate-500">
             <tr>
@@ -110,8 +163,8 @@ const LancamentosPage: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-white/5">
             {isLoading && <tr><td colSpan={5} className="px-5 py-4 text-slate-400">Carregando...</td></tr>}
-            {!isLoading && entries.length === 0 && <tr><td colSpan={5} className="px-5 py-4 text-slate-400">Nenhum lançamento no período.</td></tr>}
-            {entries.map(entry => (
+            {!isLoading && filteredEntries.length === 0 && <tr><td colSpan={5} className="px-5 py-4 text-slate-400">Nenhum lançamento no período.</td></tr>}
+            {filteredEntries.map(entry => (
               <tr key={`${entry.source}-${entry.sourceId}`}>
                 <td className="px-5 py-3">{formatDateBR(entry.date)}</td>
                 <td className="px-5 py-3">{entry.description}</td>
@@ -147,10 +200,15 @@ const LancamentosPage: React.FC = () => {
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{r.name}</p>
                 <p className="text-xs text-slate-500">{r.category} · todo dia {r.dayOfMonth} · {formatBRL(r.amount)}</p>
               </div>
-              <label className="flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={r.active} onChange={() => handleToggleRecurring(r.id, r.active)} />
-                Ativa
-              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-xs">
+                  <input type="checkbox" checked={r.active} onChange={() => handleToggleRecurring(r.id, r.active)} />
+                  Ativa
+                </label>
+                <button onClick={() => handleDeleteRecurring(r.id, r.name)} className="text-slate-400 hover:text-error-text" aria-label={`Excluir despesa recorrente ${r.name}`}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
