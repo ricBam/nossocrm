@@ -12,7 +12,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SearchResponse } from '@/app/api/radar/search/route';
-import type { RadarReview } from '@/lib/radar/types';
+import type { RadarReview, ScoreBreakdownItem } from '@/lib/radar/types';
 
 export const RADAR_BUDGET_KEY = ['radar', 'budget'] as const;
 
@@ -80,7 +80,7 @@ export const useRadarReviews = () => {
   const queryClient = useQueryClient();
 
   return useMutation<
-    { reviews: RadarReview[]; costUsd: number },
+    { reviews: RadarReview[]; costUsd: number; score: number; breakdown: ScoreBreakdownItem[] },
     Error,
     { resultId: string; maxReviews: number }
   >({

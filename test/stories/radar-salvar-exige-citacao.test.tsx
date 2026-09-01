@@ -80,11 +80,26 @@ describe('Salvar no CRM exige citação literal', () => {
         expect(screen.getByRole('button', { name: /salvar no crm/i })).toBeDisabled();
     });
 
-    it('habilita assim que existe citação de verdade', () => {
+    it('continua desabilitado com citação mas sem data', () => {
         renderModal();
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        expect(screen.getByRole('button', { name: /salvar no crm/i })).toBeDisabled();
+    });
+
+    it('continua desabilitado com data mas sem citação', () => {
+        renderModal();
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
+        expect(screen.getByRole('button', { name: /salvar no crm/i })).toBeDisabled();
+    });
+
+    it('habilita assim que existem citação e data', () => {
+        renderModal();
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         expect(screen.getByRole('button', { name: /salvar no crm/i })).toBeEnabled();
     });
 
@@ -127,6 +142,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
@@ -161,6 +177,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith('deal_1'));
@@ -176,6 +193,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes.\nNinguém atendeu.\nDesisti.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(createNote).toHaveBeenCalled());
@@ -201,6 +219,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
@@ -240,6 +259,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
@@ -258,6 +278,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -287,6 +308,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith('deal_1'));
@@ -313,6 +335,7 @@ describe('Salvar no CRM exige citação literal', () => {
         fireEvent.change(screen.getByLabelText(/citação literal/i), {
             target: { value: 'Liguei três vezes e ninguém responde.' },
         });
+        fireEvent.change(screen.getByLabelText(/data da avaliação/i), { target: { value: '2026-07-01' } });
         fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
 
         await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));

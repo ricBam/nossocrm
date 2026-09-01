@@ -2,7 +2,8 @@
  * @fileoverview Avaliações de UMA empresa, sob demanda.
  *
  * Custa por avaliação, então: nunca roda junto com a busca, nunca roda duas
- * vezes para a mesma empresa, e o actor filtra pelos termos do âncora na origem.
+ * vezes para a mesma empresa. O actor corta por DATA (últimos 180 dias) — não
+ * por termo do âncora; os termos só ordenam a lista, ver `rankReviewsByAnchor`.
  *
  * @module app/api/radar/reviews/route
  */

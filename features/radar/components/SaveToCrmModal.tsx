@@ -50,7 +50,7 @@ function montarNota(result: RadarResultDTO, citacao: string, dataCitacao: string
         '',
         citacaoEmBlockquote,
         '',
-        `**Data da avaliação:** ${dataCitacao || 'não informada'}`,
+        `**Data da avaliação:** ${dataCitacao}`,
         `**Origem:** google_maps · coletado em ${new Date(p.collectedAt).toLocaleString('pt-BR')}`,
         '',
         '### Dados da busca',
@@ -115,7 +115,8 @@ export function SaveToCrmModal({
     // Primeiro estágio por ordem. Nunca um nome literal.
     const primeiroEstagio = board?.stages?.[0];
     const temCitacao = citacao.trim().length > 0;
-    const podeSalvar = temCitacao && !!board && !!primeiroEstagio && !salvando;
+    const temData = dataCitacao.trim().length > 0;
+    const podeSalvar = temCitacao && temData && !!board && !!primeiroEstagio && !salvando;
     // O deal já existe, só falta a nota de auditoria pegar.
     const aguardandoRetentativaDeNota = dealIdCriado !== null;
 
@@ -352,7 +353,7 @@ export function SaveToCrmModal({
                 </div>
 
                 <div className="space-y-1">
-                    <Label htmlFor="radar-data-citacao">Data da avaliação</Label>
+                    <Label htmlFor="radar-data-citacao">Data da avaliação *</Label>
                     <Input
                         id="radar-data-citacao"
                         type="date"
@@ -360,11 +361,11 @@ export function SaveToCrmModal({
                         onChange={(e) => setDataCitacao(e.target.value)}
                         disabled={aguardandoRetentativaDeNota}
                     />
-                    {aguardandoRetentativaDeNota && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Data travada junto com a citação.
-                        </p>
-                    )}
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {aguardandoRetentativaDeNota
+                            ? 'Data travada junto com a citação.'
+                            : 'Sem data não há lead. A constituição exige citação e data juntas.'}
+                    </p>
                 </div>
 
                 {erro && <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>}

@@ -227,8 +227,9 @@ export interface ReviewsInput {
  * "keywords" no plural mas tipa o campo como `string` única, sem especificar se
  * espaço separa termos ou se a string inteira é uma frase literal. Se for frase
  * literal, o filtro casaria zero avaliações e ainda assim pagaríamos o
- * `place-details-scraped`. A filtragem por termo acontece localmente em
- * `findAnchorMatches`, que é nossa e não custa nada.
+ * `place-details-scraped`. NÃO há filtragem por termo — `findAnchorMatches`
+ * só ordena e destaca localmente, sem custo, o que voltou dentro da janela de
+ * 180 dias. A UI marca visivelmente uma avaliação sem nenhum termo do âncora.
  */
 export async function runReviewsScrape(
   input: ReviewsInput

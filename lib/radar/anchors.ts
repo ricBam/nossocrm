@@ -1,9 +1,9 @@
 /**
  * @fileoverview O âncora de busca do Radar: "ninguém responde".
  *
- * Estes termos servem a dois propósitos:
- * 1. `reviewsFilterString` do actor de avaliações — filtra na origem e corta
- *    eventos `review-scraped`, que são cobrados um a um.
+ * Estes termos servem a dois propósitos, os dois LOCAIS — o corte de custo do
+ * actor é por data (`reviewsStartDate`, ver `lib/radar/apify.ts`), não por termo:
+ * 1. Ordenar as avaliações buscadas, via `rankReviewsByAnchor`.
  * 2. Destaque na leitura, para o Ricardo escolher o trecho que vira citação.
  *
  * @module lib/radar/anchors

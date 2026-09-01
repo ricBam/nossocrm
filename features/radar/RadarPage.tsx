@@ -10,6 +10,7 @@ import { ReviewsPanel } from './components/ReviewsPanel';
 import { SaveToCrmModal } from './components/SaveToCrmModal';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
 import type { RadarSearchVars } from '@/lib/query/hooks/useRadarQuery';
+import type { ScoreBreakdownItem } from '@/lib/radar/types';
 
 const FILTROS_INICIAIS: SearchFilters = {
     semSite: false,
@@ -60,10 +61,22 @@ export function RadarPage() {
     // aqui, então é este conjunto que tira o card da tela quando não dá para
     // recarregar de graça.
     const [apagados, setApagados] = useState<string[]>([]);
+    // Score/breakdown recomputados por uma busca de avaliações, por id. `search.data`
+    // é imutável aqui, então esta é a forma de atualizar UMA linha sem rebuscar
+    // tudo — o dinheiro da avaliação já foi pago, só falta a tela refletir.
+    const [scoreOverrides, setScoreOverrides] = useState<
+        Record<string, { score: number; breakdown: ScoreBreakdownItem[] }>
+    >({});
 
     const results = useMemo(
-        () => (search.data?.results ?? []).filter((r) => !apagados.includes(r.id)),
-        [search.data, apagados]
+        () =>
+            (search.data?.results ?? [])
+                .filter((r) => !apagados.includes(r.id))
+                .map((r) => {
+                    const override = scoreOverrides[r.id];
+                    return override ? { ...r, score: override.score, breakdown: override.breakdown } : r;
+                }),
+        [search.data, apagados, scoreOverrides]
     );
     const visiveis = useMemo(() => aplicarFiltros(results, filters), [results, filters]);
 
@@ -114,9 +127,10 @@ export function RadarPage() {
                     onFiltersChange={setFilters}
                     onSubmit={(vars) => {
                         setUltimaBusca(vars);
-                        // Lista nova, conjunto de apagados zerado: os ids da
-                        // busca anterior não escondem nada da próxima.
+                        // Lista nova, conjunto de apagados e overrides de score
+                        // zerados: nada da busca anterior vaza para esta.
                         setApagados([]);
+                        setScoreOverrides({});
                         search.mutate(vars);
                     }}
                 />
@@ -175,6 +189,9 @@ export function RadarPage() {
                         setCitacaoSugerida({ quote, date });
                         setSalvando(lendo);
                         setLendo(null);
+                    }}
+                    onScoreResolved={(resultId, score, breakdown) => {
+                        setScoreOverrides((atuais) => ({ ...atuais, [resultId]: { score, breakdown } }));
                     }}
                 />
             )}

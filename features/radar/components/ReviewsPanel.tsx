@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useRadarReviews } from '@/lib/query/hooks/useRadarQuery';
 import { findAnchorMatches } from '@/lib/radar/anchors';
 import { estimateReviewsCost } from '@/lib/radar/pricing';
-import type { RadarReview } from '@/lib/radar/types';
+import type { RadarReview, ScoreBreakdownItem } from '@/lib/radar/types';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
 
 const MAX_REVIEWS = 10;
@@ -39,10 +40,13 @@ export function ReviewsPanel({
     result,
     onClose,
     onUseQuote,
+    onScoreResolved,
 }: {
     result: RadarResultDTO;
     onClose: () => void;
     onUseQuote: (quote: string, date: string | null) => void;
+    /** Chamado com o score e o breakdown recomputados, assim que a busca de avaliações termina. */
+    onScoreResolved: (resultId: string, score: number, breakdown: ScoreBreakdownItem[]) => void;
 }) {
     const puxar = useRadarReviews();
     const [reviews, setReviews] = useState<RadarReview[] | null>(null);
@@ -59,7 +63,7 @@ export function ReviewsPanel({
                 <div>
                     <h2 className="font-semibold">{result.place.title}</h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Avaliações filtradas pelos termos do âncora
+                        Avaliações dos últimos 180 dias, ordenadas pelos termos do âncora que casam
                     </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
@@ -78,6 +82,7 @@ export function ReviewsPanel({
                                 maxReviews: MAX_REVIEWS,
                             });
                             setReviews(out.reviews);
+                            onScoreResolved(result.id, out.score, out.breakdown);
                         }}
                     >
                         {puxar.isPending ? 'Puxando…' : 'Puxar avaliações'}
@@ -90,31 +95,39 @@ export function ReviewsPanel({
 
             {reviews !== null && reviews.length === 0 && (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Nenhuma avaliação casou com os termos do âncora. Sem citação, não há lead.
+                    Nenhuma avaliação nos últimos 180 dias. Sem citação, não há lead.
                 </p>
             )}
 
             <ul className="space-y-3">
-                {(reviews ?? []).map((r) => (
-                    <li key={r.reviewId} className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700">
-                        <p className="mb-2 whitespace-pre-wrap">
-                            <Destacado review={r} />
-                        </p>
-                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                            <span>
-                                {r.stars ?? '—'}★ ·{' '}
-                                {r.publishedAt ? new Date(r.publishedAt).toLocaleDateString('pt-BR') : 'sem data'}
-                            </span>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => onUseQuote(r.text, r.publishedAt ? r.publishedAt.slice(0, 10) : null)}
-                            >
-                                Usar como citação
-                            </Button>
-                        </div>
-                    </li>
-                ))}
+                {(reviews ?? []).map((r) => {
+                    const semTermoDoAncora = findAnchorMatches(r).length === 0;
+                    return (
+                        <li key={r.reviewId} className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700">
+                            <p className="mb-2 whitespace-pre-wrap">
+                                <Destacado review={r} />
+                            </p>
+                            <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span className="flex items-center gap-2">
+                                    {r.stars ?? '—'}★ ·{' '}
+                                    {r.publishedAt ? new Date(r.publishedAt).toLocaleDateString('pt-BR') : 'sem data'}
+                                    {semTermoDoAncora && (
+                                        <Badge variant="secondary" className="font-normal">
+                                            sem termo do âncora
+                                        </Badge>
+                                    )}
+                                </span>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => onUseQuote(r.text, r.publishedAt ? r.publishedAt.slice(0, 10) : null)}
+                                >
+                                    Usar como citação
+                                </Button>
+                            </div>
+                        </li>
+                    );
+                })}
             </ul>
         </aside>
     );
