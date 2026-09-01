@@ -49,10 +49,20 @@ export async function POST(req: Request) {
     const { resultId, maxReviews } = parsed.data;
 
     const { data: profile } = await supabase
-      .from('profiles').select('organization_id').eq('id', auth.user.id).maybeSingle();
+      .from('profiles').select('organization_id, role').eq('id', auth.user.id).maybeSingle();
     const organizationId = (profile as { organization_id?: string } | null)?.organization_id;
     if (!organizationId) {
       return NextResponse.json({ error: 'Organização não identificada.' }, { status: 403 });
+    }
+
+    // Gate de papel ANTES do teto e do Apify: as policies de RLS de
+    // `radar_searches`/`radar_results` são admin-only, então um membro
+    // não-admin somaria zero no ciclo, passaria pelo teto, seria cobrado pelo
+    // run e só então esbarraria no WITH CHECK do insert de gasto — dinheiro
+    // fora e invisível para o teto. Precedente: `app/api/admin/*` responde 403.
+    const role = (profile as { role?: string } | null)?.role ?? null;
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Apenas administradores usam o Radar.' }, { status: 403 });
     }
 
     const { data: row } = await supabase
@@ -134,8 +144,10 @@ export async function POST(req: Request) {
     );
     if (!insertOutcome.success) {
       // Esse gasto já saiu no Apify e some do teto do ciclo se não for
-      // reconciliado à mão — visibilidade máxima.
-      console.error(`[radar/reviews] FALHA ao ${insertOutcome.message}`);
+      // reconciliado à mão — visibilidade máxima. O erro do Postgrest vai
+      // INTEIRO junto: `code`, `details` e `hint` são o que permite descobrir
+      // POR QUE o gasto não entrou.
+      console.error(`[radar/reviews] FALHA ao ${insertOutcome.message}`, insertOutcome.error);
     }
 
     // Só persistimos as avaliações quando o run terminou. Um resultado parcial
@@ -163,7 +175,7 @@ export async function POST(req: Request) {
       if (updateOutcome.success) {
         persisted = true;
       } else {
-        console.error(`[radar/reviews] FALHA ao ${updateOutcome.message}`);
+        console.error(`[radar/reviews] FALHA ao ${updateOutcome.message}`, updateOutcome.error);
       }
     }
 

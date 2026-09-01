@@ -1,14 +1,15 @@
 /**
  * @fileoverview Busca do Radar de Clientes.
  *
- * Ordem deliberada: auth → validação → teto → cache → Apify. O Apify é a
- * última coisa a ser tocada, porque é a única que custa dinheiro.
+ * Ordem deliberada: auth → papel → validação → teto → cache → Apify. O Apify é
+ * a última coisa a ser tocada, porque é a única que custa dinheiro.
  *
  * @module app/api/radar/search/route
  */
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { tryWrite } from '@/lib/radar/supabaseWrite';
 import { runPlacesSearch, ApifyConfigError } from '@/lib/radar/apify';
@@ -53,6 +54,14 @@ interface CachedResultRow {
   disqualified: boolean;
   disqualify_reasons: string[];
   saved_deal_id: string | null;
+}
+
+/** Linha já existente de um lugar desta organização, lida antes de regravar. */
+interface ExistingResultRow {
+  id: string;
+  place_id: string;
+  search_id: string | null;
+  reviews_fetched_at: string | null;
 }
 
 export interface RadarResultDTO {
@@ -125,9 +134,18 @@ export async function POST(req: Request) {
     }
     const body = parsed.data;
 
-    const { organizationId } = await resolveOrg(supabase, auth.user.id);
+    const { organizationId, role } = await resolveOrg(supabase, auth.user.id);
     if (!organizationId) {
       return NextResponse.json({ error: 'Organização não identificada.' }, { status: 403 });
+    }
+
+    // Gate de papel ANTES do teto e do Apify. As policies de RLS de
+    // `radar_searches`/`radar_results` são admin-only: para um membro não-admin
+    // a soma do ciclo voltaria vazia (o teto nunca dispararia), o Apify seria
+    // cobrado e só então o insert bateria no WITH CHECK — dinheiro fora, nada
+    // registrado, repetível em laço. Precedente: `app/api/admin/*` responde 403.
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Apenas administradores usam o Radar.' }, { status: 403 });
     }
 
     const nicho = body.nicho.toLowerCase();
@@ -157,11 +175,26 @@ export async function POST(req: Request) {
 
       const hit = (cached ?? [])[0] as { id: string; created_at: string } | undefined;
       if (hit) {
-        const { data: rows } = await supabase
-          .from('radar_results')
-          .select('id, place_id, payload, score, score_breakdown, disqualified, disqualify_reasons, saved_deal_id')
+        // A filiação vem de `radar_search_results`, NÃO de
+        // `radar_results.search_id`: um lugar encontrado por duas buscas tem uma
+        // linha de filiação para cada uma. Ler por `search_id` devolveria só o
+        // que ainda estivesse parenteado a esta busca — que é exatamente o bug
+        // em que a segunda busca esvaziava o cache da primeira.
+        const { data: links } = await supabase
+          .from('radar_search_results')
+          .select('result_id')
           .eq('search_id', hit.id)
           .eq('organization_id', organizationId);
+
+        const resultIds = ((links ?? []) as { result_id: string }[]).map(l => l.result_id);
+
+        const { data: rows } = resultIds.length > 0
+          ? await supabase
+            .from('radar_results')
+            .select('id, place_id, payload, score, score_breakdown, disqualified, disqualify_reasons, saved_deal_id')
+            .in('id', resultIds)
+            .eq('organization_id', organizationId)
+          : { data: [] as unknown[] };
 
         const cachedRows = (rows ?? []) as unknown as CachedResultRow[];
         const results: RadarResultDTO[] = cachedRows.map(r => ({
@@ -208,13 +241,22 @@ export async function POST(req: Request) {
       withContacts: body.withContacts,
     });
 
-    // --- Índice de dedupe: place_ids já vistos + telefones dos contatos --------
+    // --- Índice de dedupe + estado atual das linhas desta organização ---------
+    // A mesma leitura serve dois propósitos: o índice de dedupe (place_ids já
+    // vistos) e saber, para cada lugar que este run devolveu, se a linha já
+    // existe, qual busca a descobriu e se ela já foi enriquecida com
+    // avaliações. Sem isso a regravação abaixo destruiria o enriquecimento.
     const [{ data: seen }, { data: contacts }] = await Promise.all([
-      supabase.from('radar_results').select('place_id').eq('organization_id', organizationId),
+      supabase
+        .from('radar_results')
+        .select('id, place_id, search_id, reviews_fetched_at')
+        .eq('organization_id', organizationId),
       supabase.from('contacts').select('phone').eq('organization_id', organizationId).is('deleted_at', null),
     ]);
+    const seenRows = (seen ?? []) as ExistingResultRow[];
+    const existentes = new Map(seenRows.map(r => [r.place_id, r]));
     const index = buildDedupeIndex({
-      knownPlaceIds: ((seen ?? []) as { place_id: string }[]).map(r => r.place_id),
+      knownPlaceIds: seenRows.map(r => r.place_id),
       knownPhones: ((contacts ?? []) as { phone: string | null }[]).map(r => r.phone),
     });
 
@@ -254,28 +296,89 @@ export async function POST(req: Request) {
     // mas a resposta a ESTA requisição ainda devolve os resultados em
     // memória — um run pago não pode simplesmente sumir da tela do usuário.
     let persistFailed = false;
-    if (scored.length > 0) {
-      const upsertOutcome = await tryWrite(
-        supabase.from('radar_results').upsert(
-          scored.map(({ place, s }) => ({
-            organization_id: organizationId,
-            search_id: searchId,
-            place_id: place.placeId,
-            payload: place,
-            score: s.score,
-            score_breakdown: s.breakdown,
-            disqualified: s.disqualified,
-            disqualify_reasons: s.disqualifyReasons,
-            collected_at: place.collectedAt,
-          })),
-          { onConflict: 'organization_id,place_id' }
-        ),
-        `gravar radar_results para search_id=${searchId}`
-      );
+    const falhas: { message: string; error: PostgrestError }[] = [];
+    const salvas: { id: string; place_id: string; saved_deal_id: string | null }[] = [];
 
-      if (!upsertOutcome.success) {
+    if (scored.length > 0) {
+      const placeIds = scored.map(({ place }) => place.placeId);
+
+      // `search_id` no upsert é sempre o da linha que JÁ existe — nunca o desta
+      // busca. Reescrevê-lo roubaria a linha da busca que a descobriu, e é o
+      // que fazia a busca anterior virar um cache vazio. A filiação desta busca
+      // é gravada mais abaixo, em `radar_search_results`.
+      const linhaBase = (place: RadarPlace) => ({
+        organization_id: organizationId,
+        search_id: existentes.get(place.placeId)?.search_id ?? searchId,
+        place_id: place.placeId,
+        payload: place,
+        collected_at: place.collectedAt,
+      });
+
+      // Linha já enriquecida com avaliações: `score`, `score_breakdown`,
+      // `disqualified` e `disqualify_reasons` ficam DE FORA do payload, então o
+      // ON CONFLICT não os toca. Reescrevê-los aqui gravaria uma pontuação
+      // calculada sem avaliações ao lado de `reviews`/`reviews_fetched_at`
+      // preenchidos — a linha passaria a afirmar que as avaliações estão
+      // pendentes tendo as avaliações dentro do próprio registro.
+      const enriquecidas = scored.filter(({ place }) => Boolean(existentes.get(place.placeId)?.reviews_fetched_at));
+      const semAvaliacoes = scored.filter(({ place }) => !existentes.get(place.placeId)?.reviews_fetched_at);
+
+      if (semAvaliacoes.length > 0) {
+        const outcome = await tryWrite(
+          supabase.from('radar_results').upsert(
+            semAvaliacoes.map(({ place, s }) => ({
+              ...linhaBase(place),
+              score: s.score,
+              score_breakdown: s.breakdown,
+              disqualified: s.disqualified,
+              disqualify_reasons: s.disqualifyReasons,
+            })),
+            { onConflict: 'organization_id,place_id' }
+          ),
+          `gravar radar_results para search_id=${searchId}`
+        );
+        if (!outcome.success) falhas.push(outcome);
+      }
+
+      if (enriquecidas.length > 0) {
+        const outcome = await tryWrite(
+          supabase.from('radar_results').upsert(
+            enriquecidas.map(({ place }) => linhaBase(place)),
+            { onConflict: 'organization_id,place_id' }
+          ),
+          `atualizar payload de linhas já enriquecidas para search_id=${searchId}`
+        );
+        if (!outcome.success) falhas.push(outcome);
+      }
+
+      const { data: savedRows } = await supabase
+        .from('radar_results')
+        .select('id, place_id, saved_deal_id')
+        .eq('organization_id', organizationId)
+        .in('place_id', placeIds);
+      salvas.push(...((savedRows ?? []) as { id: string; place_id: string; saved_deal_id: string | null }[]));
+
+      // Filiação desta busca. Sem estas linhas a busca existe, é cacheável e
+      // devolve zero resultados — o mesmo sintoma que o roubo de `search_id`
+      // causava, então uma falha aqui também marca a busca como parcial.
+      if (salvas.length > 0) {
+        const outcome = await tryWrite(
+          supabase.from('radar_search_results').upsert(
+            salvas.map(r => ({ search_id: searchId, result_id: r.id, organization_id: organizationId })),
+            { onConflict: 'search_id,result_id', ignoreDuplicates: true }
+          ),
+          `gravar filiação em radar_search_results para search_id=${searchId}`
+        );
+        if (!outcome.success) falhas.push(outcome);
+      }
+
+      if (falhas.length > 0) {
         persistFailed = true;
-        console.error(`[radar/search] falha ao ${upsertOutcome.message}`);
+        for (const f of falhas) {
+          // O erro do Postgrest vai INTEIRO para o log: `code`, `details` e
+          // `hint` são o que permite reconciliar à mão um run que já foi pago.
+          console.error(`[radar/search] falha ao ${f.message}`, f.error);
+        }
         const updateOutcome = await tryWrite(
           supabase
             .from('radar_searches')
@@ -286,20 +389,12 @@ export async function POST(req: Request) {
         );
 
         if (!updateOutcome.success) {
-          console.error(`[radar/search] falha ao ${updateOutcome.message}`);
+          console.error(`[radar/search] falha ao ${updateOutcome.message}`, updateOutcome.error);
         }
       }
     }
 
-    const { data: savedRows } = await supabase
-      .from('radar_results')
-      .select('id, place_id, saved_deal_id')
-      .eq('search_id', searchId)
-      .eq('organization_id', organizationId);
-    const byPlace = new Map(
-      ((savedRows ?? []) as { id: string; place_id: string; saved_deal_id: string | null }[])
-        .map(r => [r.place_id, r])
-    );
+    const byPlace = new Map(salvas.map(r => [r.place_id, r]));
 
     return NextResponse.json<SearchResponse>({
       searchId,

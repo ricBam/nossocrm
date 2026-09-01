@@ -22,6 +22,7 @@ const USER = 'c2fce80e-77f6-4c85-9d41-f98d9a2aef16';
  */
 function fakeSupabase(opts: {
   user?: { id: string } | null;
+  role?: string;
   searchRows?: unknown[];
   spentRows?: { cost_usd: number }[];
   resultRows?: unknown[];
@@ -43,13 +44,18 @@ function fakeSupabase(opts: {
         : name === 'radar_results'
           ? (opts.resultRows ?? [])
           : name === 'profiles'
-            ? [{ organization_id: ORG, role: 'admin' }]
+            ? [{ organization_id: ORG, role: opts.role ?? 'admin' }]
             : name === 'contacts'
               ? []
-              : [];
+              // A filiação espelha o que `resultRows` devolveria: um link por
+              // linha de resultado, que é o que a leitura de cache percorre.
+              : name === 'radar_search_results'
+                ? (opts.resultRows ?? []).map((r) => ({ result_id: (r as { id: string }).id }))
+                : [];
     const builder: Record<string, unknown> = {
       data: rows, error: null,
       select: () => builder, eq: () => builder, gte: () => builder, is: () => builder,
+      in: () => builder,
       order: () => builder, limit: () => builder,
       insert: () => ({ select: () => ({ single: async () => ({ data: { id: 'search_1' }, error: null }) }) }),
       upsert: async () =>
@@ -99,6 +105,16 @@ describe('POST /api/radar/search — autenticação', () => {
     createClient.mockResolvedValue(fakeSupabase({ user: null }));
     const res = await POST(req(VALID));
     expect(res.status).toBe(401);
+    expect(runPlacesSearch).not.toHaveBeenCalled();
+  });
+
+  it('responde 403 e não chama o Apify quando o usuário não é admin', async () => {
+    // A RLS de radar_searches/radar_results é admin-only: sem este gate a soma
+    // do ciclo voltaria vazia (teto nunca dispara), o Apify seria cobrado e o
+    // insert do gasto morreria no WITH CHECK — dinheiro fora, nada registrado.
+    createClient.mockResolvedValue(fakeSupabase({ role: 'vendedor' }));
+    const res = await POST(req(VALID));
+    expect(res.status).toBe(403);
     expect(runPlacesSearch).not.toHaveBeenCalled();
   });
 });

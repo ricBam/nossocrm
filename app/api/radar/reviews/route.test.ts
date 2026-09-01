@@ -44,6 +44,7 @@ const PLACE = {
  */
 function fakeSupabase(opts: {
   user?: { id: string } | null;
+  role?: string;
   resultRow?: Record<string, unknown> | null;
   spentRows?: { cost_usd: number }[];
   insertFails?: boolean;
@@ -62,7 +63,7 @@ function fakeSupabase(opts: {
       }),
       maybeSingle: async () => {
         if (name === 'radar_results') return { data: opts.resultRow ?? null, error: null };
-        if (name === 'profiles') return { data: { organization_id: ORG }, error: null };
+        if (name === 'profiles') return { data: { organization_id: ORG, role: opts.role ?? 'admin' }, error: null };
         return { data: null, error: null };
       },
       insert: (patch: unknown) => {
@@ -138,6 +139,16 @@ describe('POST /api/radar/reviews — autorização', () => {
     createClient.mockResolvedValue(fakeSupabase({ resultRow: null }));
     const res = await POST(req(VALID));
     expect(res.status).toBe(404);
+    expect(runReviewsScrape).not.toHaveBeenCalled();
+  });
+
+  it('responde 403 e não chama o Apify quando o usuário não é admin', async () => {
+    // A RLS de radar_searches é admin-only: sem este gate a soma do ciclo
+    // voltaria vazia, o teto nunca dispararia e o run seria pago sem que o
+    // gasto conseguisse ser gravado.
+    createClient.mockResolvedValue(fakeSupabase({ role: 'vendedor', resultRow: { id: RESULT_ID, payload: PLACE, reviews: null, reviews_fetched_at: null } }));
+    const res = await POST(req(VALID));
+    expect(res.status).toBe(403);
     expect(runReviewsScrape).not.toHaveBeenCalled();
   });
 });

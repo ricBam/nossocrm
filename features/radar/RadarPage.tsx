@@ -56,12 +56,25 @@ export function RadarPage() {
     const [apagandoId, setApagandoId] = useState<string | null>(null);
     const [erroAoApagar, setErroAoApagar] = useState<string | null>(null);
     const [ultimaBusca, setUltimaBusca] = useState<RadarSearchVars | null>(null);
+    // Ids já apagados no servidor. A lista vem de `search.data`, que é imutável
+    // aqui, então é este conjunto que tira o card da tela quando não dá para
+    // recarregar de graça.
+    const [apagados, setApagados] = useState<string[]>([]);
 
-    const results = search.data?.results ?? [];
+    const results = useMemo(
+        () => (search.data?.results ?? []).filter((r) => !apagados.includes(r.id)),
+        [search.data, apagados]
+    );
     const visiveis = useMemo(() => aplicarFiltros(results, filters), [results, filters]);
 
-    // Recarrega a busca com `refresh: false` para pegar a lista atualizada sem
-    // gastar de novo — cai no cache dos 30 dias.
+    // O card sai da tela SEMPRE por estado local. O recarregamento por cima
+    // disso é opcional e só acontece quando é comprovadamente grátis.
+    //
+    // ⚠️ `refresh: false` só é grátis quando existe linha cacheável para esta
+    // busca, e o cache exige `partial = false`. Depois de uma busca parcial
+    // (timeout do run ou falha de gravação) não há linha cacheável, então esse
+    // "recarregar" viraria um run novo do Apify — até US$ 0,40 disparados por
+    // um botão escrito Apagar. Nesse caso não se recarrega nada.
     //
     // ResultCard chama isto sem `await`/`.catch` (é um `onClick`), então o
     // catch precisa estar AQUI — senão uma falha vira unhandled rejection e o
@@ -72,7 +85,10 @@ export function RadarPage() {
         try {
             const res = await fetch(`/api/radar/results/${r.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Falha ao apagar.');
-            if (ultimaBusca) await search.mutateAsync({ ...ultimaBusca, refresh: false });
+            setApagados((atuais) => (atuais.includes(r.id) ? atuais : [...atuais, r.id]));
+            if (ultimaBusca && search.data && !search.data.partial) {
+                await search.mutateAsync({ ...ultimaBusca, refresh: false });
+            }
         } catch (err) {
             setErroAoApagar(err instanceof Error ? err.message : 'Falha ao apagar.');
         } finally {
@@ -96,7 +112,13 @@ export function RadarPage() {
                     isSearching={search.isPending}
                     filters={filters}
                     onFiltersChange={setFilters}
-                    onSubmit={(vars) => { setUltimaBusca(vars); search.mutate(vars); }}
+                    onSubmit={(vars) => {
+                        setUltimaBusca(vars);
+                        // Lista nova, conjunto de apagados zerado: os ids da
+                        // busca anterior não escondem nada da próxima.
+                        setApagados([]);
+                        search.mutate(vars);
+                    }}
                 />
             </aside>
 
