@@ -3,7 +3,7 @@
  * @module lib/radar/types
  */
 
-/** Um lugar retornado pelo actor compass~crawler-google-places, já enxugado. */
+/** Um lugar retornado pelo actor kaix/google-maps-places-scraper, já enxugado. */
 export interface RadarPlace {
   placeId: string;
   title: string;
@@ -12,7 +12,7 @@ export interface RadarPlace {
   city: string | null;
   phone: string | null;
   website: string | null;
-  /** Perfis sociais achados pelo add-on scrapeContacts. */
+  /** Sempre vazio: o actor kaix não tem um add-on de enriquecimento de contato. */
   socials: string[];
   totalScore: number | null;
   reviewsCount: number | null;
@@ -23,24 +23,12 @@ export interface RadarPlace {
   collectedAt: string;
 }
 
-/** Uma avaliação do Google, como devolvida pelo actor de reviews. */
-export interface RadarReview {
-  reviewId: string;
-  text: string;
-  stars: number | null;
-  /** ISO 8601. */
-  publishedAt: string | null;
-  reviewerName: string | null;
-}
-
 /** Uma linha do score, sempre visível ao usuário. */
 export interface ScoreBreakdownItem {
   label: string;
   points: number;
   /** true quando o sinal foi atendido; false quando somou zero. */
   matched: boolean;
-  /** Preenchido quando o sinal não pôde ser avaliado ainda (ex: faltam avaliações). */
-  pending?: boolean;
 }
 
 export interface RadarScore {

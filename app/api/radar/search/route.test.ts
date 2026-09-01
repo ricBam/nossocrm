@@ -207,7 +207,7 @@ describe('POST /api/radar/search — execução ao vivo', () => {
     expect(json.costUsd).toBeCloseTo(0.0131, 5);
     expect(json.results).toHaveLength(1);
     expect(json.results[0].score).toBeGreaterThan(0);
-    expect(json.results[0].breakdown.length).toBe(5);
+    expect(json.results[0].breakdown.length).toBe(4);
     expect(json.partial).toBe(false);
   });
 

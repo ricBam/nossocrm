@@ -4,13 +4,14 @@ import { useMemo, useState } from 'react';
 import { Radar as RadarIcon } from 'lucide-react';
 import { useRadarBudget, useRadarSearch } from '@/lib/query/hooks/useRadarQuery';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { SearchForm, type SearchFilters } from './components/SearchForm';
 import { ResultCard } from './components/ResultCard';
-import { ReviewsPanel } from './components/ReviewsPanel';
-import { SaveToCrmModal } from './components/SaveToCrmModal';
+import { ResultDetail } from './components/ResultDetail';
+import { useSaveToCrm } from './hooks/useSaveToCrm';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
 import type { RadarSearchVars } from '@/lib/query/hooks/useRadarQuery';
-import type { ScoreBreakdownItem } from '@/lib/radar/types';
 
 const FILTROS_INICIAIS: SearchFilters = {
     semSite: false,
@@ -25,7 +26,8 @@ const FILTROS_INICIAIS: SearchFilters = {
  * Aplica os filtros de descoberta e a ordenação.
  *
  * ⚠️ Isto NUNCA remove empresa desqualificada da lista: ela aparece marcada,
- * porque sumir com ela esconderia o motivo. Filtro aqui é fila de leitura.
+ * porque sumir com ela esconderia o motivo. `semSite`/`semRedeSocial`/notas
+ * SÃO qualificação de verdade — removem da lista quem não bate.
  */
 function aplicarFiltros(results: RadarResultDTO[], f: SearchFilters): RadarResultDTO[] {
     const filtrados = results.filter((r) => {
@@ -48,35 +50,34 @@ function aplicarFiltros(results: RadarResultDTO[], f: SearchFilters): RadarResul
 export function RadarPage() {
     const { data: budget, isLoading: isBudgetLoading, isError: isBudgetError } = useRadarBudget();
     const search = useRadarSearch();
+    const { salvar: salvarNoCrm } = useSaveToCrm();
     const [filters, setFilters] = useState<SearchFilters>(FILTROS_INICIAIS);
-    const [lendo, setLendo] = useState<RadarResultDTO | null>(null);
-    const [salvando, setSalvando] = useState<RadarResultDTO | null>(null);
-    const [citacaoSugerida, setCitacaoSugerida] = useState<{ quote: string; date: string | null } | null>(null);
-    // Id do resultado sendo apagado agora, não um boolean global — senão o
-    // delete de um card desabilitaria o botão Apagar de todos os outros.
+    const [verDetalhe, setVerDetalhe] = useState<RadarResultDTO | null>(null);
+    // Id do resultado sendo apagado/salvo agora, não um boolean global — senão
+    // a ação de um card desabilitaria o botão dos outros.
     const [apagandoId, setApagandoId] = useState<string | null>(null);
     const [erroAoApagar, setErroAoApagar] = useState<string | null>(null);
+    const [salvandoId, setSalvandoId] = useState<string | null>(null);
+    const [erroAoSalvar, setErroAoSalvar] = useState<string | null>(null);
     const [ultimaBusca, setUltimaBusca] = useState<RadarSearchVars | null>(null);
     // Ids já apagados no servidor. A lista vem de `search.data`, que é imutável
     // aqui, então é este conjunto que tira o card da tela quando não dá para
     // recarregar de graça.
     const [apagados, setApagados] = useState<string[]>([]);
-    // Score/breakdown recomputados por uma busca de avaliações, por id. `search.data`
-    // é imutável aqui, então esta é a forma de atualizar UMA linha sem rebuscar
-    // tudo — o dinheiro da avaliação já foi pago, só falta a tela refletir.
-    const [scoreOverrides, setScoreOverrides] = useState<
-        Record<string, { score: number; breakdown: ScoreBreakdownItem[] }>
-    >({});
+    // Deal id de cada resultado salvo agora mesmo, por id. `search.data` é
+    // imutável aqui, então esta é a forma de o card virar "Salva" sem refazer
+    // a busca.
+    const [salvos, setSalvos] = useState<Record<string, string>>({});
+    // Ids marcados para salvamento em lote.
+    const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+    const [salvandoLote, setSalvandoLote] = useState(false);
 
     const results = useMemo(
         () =>
             (search.data?.results ?? [])
                 .filter((r) => !apagados.includes(r.id))
-                .map((r) => {
-                    const override = scoreOverrides[r.id];
-                    return override ? { ...r, score: override.score, breakdown: override.breakdown } : r;
-                }),
-        [search.data, apagados, scoreOverrides]
+                .map((r) => (salvos[r.id] ? { ...r, savedDealId: salvos[r.id] } : r)),
+        [search.data, apagados, salvos]
     );
     const visiveis = useMemo(() => aplicarFiltros(results, filters), [results, filters]);
 
@@ -89,9 +90,9 @@ export function RadarPage() {
     // "recarregar" viraria um run novo do Apify — até US$ 0,40 disparados por
     // um botão escrito Apagar. Nesse caso não se recarrega nada.
     //
-    // ResultCard chama isto sem `await`/`.catch` (é um `onClick`), então o
-    // catch precisa estar AQUI — senão uma falha vira unhandled rejection e o
-    // usuário não fica sabendo que o apagar não aconteceu.
+    // ResultCard/ResultDetail chamam isto sem `await`/`.catch` (é um `onClick`),
+    // então o catch precisa estar AQUI — senão uma falha vira unhandled
+    // rejection e o usuário não fica sabendo que o apagar não aconteceu.
     async function apagar(r: RadarResultDTO) {
         setApagandoId(r.id);
         setErroAoApagar(null);
@@ -99,6 +100,12 @@ export function RadarPage() {
             const res = await fetch(`/api/radar/results/${r.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Falha ao apagar.');
             setApagados((atuais) => (atuais.includes(r.id) ? atuais : [...atuais, r.id]));
+            setSelecionados((atuais) => {
+                if (!atuais.has(r.id)) return atuais;
+                const novo = new Set(atuais);
+                novo.delete(r.id);
+                return novo;
+            });
             if (ultimaBusca && search.data && !search.data.partial) {
                 await search.mutateAsync({ ...ultimaBusca, refresh: false });
             }
@@ -109,13 +116,64 @@ export function RadarPage() {
         }
     }
 
+    // Um clique salva — sem modal, sem exigir citação. ResultCard/ResultDetail
+    // chamam isto sem `await`/`.catch` (é um `onClick`), então o catch precisa
+    // estar AQUI, senão uma falha vira unhandled rejection.
+    async function salvar(r: RadarResultDTO) {
+        setSalvandoId(r.id);
+        setErroAoSalvar(null);
+        try {
+            const dealId = await salvarNoCrm(r);
+            setSalvos((atuais) => ({ ...atuais, [r.id]: dealId }));
+        } catch (err) {
+            setErroAoSalvar(err instanceof Error ? err.message : 'Falha ao salvar no CRM.');
+        } finally {
+            setSalvandoId(null);
+        }
+    }
+
+    function alternarSelecao(r: RadarResultDTO, marcado: boolean) {
+        setSelecionados((atuais) => {
+            const novo = new Set(atuais);
+            if (marcado) novo.add(r.id);
+            else novo.delete(r.id);
+            return novo;
+        });
+    }
+
+    // Salva um por vez (nunca em paralelo — cada um cria deal+contato+empresa
+    // própria, e criações em paralelo arriscam corrida no board padrão). Uma
+    // falha num não trava os outros; as falhas se acumulam numa mensagem só.
+    async function salvarSelecionados() {
+        const alvos = visiveis.filter((r) => selecionados.has(r.id) && !r.savedDealId);
+        if (alvos.length === 0) return;
+        setSalvandoLote(true);
+        setErroAoSalvar(null);
+        const falhas: string[] = [];
+        for (const r of alvos) {
+            setSalvandoId(r.id);
+            try {
+                const dealId = await salvarNoCrm(r);
+                setSalvos((atuais) => ({ ...atuais, [r.id]: dealId }));
+            } catch (err) {
+                falhas.push(`${r.place.title}: ${err instanceof Error ? err.message : 'falha desconhecida'}`);
+            }
+        }
+        setSalvandoId(null);
+        setSalvandoLote(false);
+        setSelecionados(new Set());
+        if (falhas.length > 0) {
+            setErroAoSalvar(`Falha ao salvar ${falhas.length} de ${alvos.length}: ${falhas.join(' · ')}`);
+        }
+    }
+
     return (
         <div className="grid gap-6 p-4 lg:grid-cols-[320px_1fr]">
             <aside className="space-y-4">
                 <div>
                     <h1 className="text-xl font-semibold">Radar de Clientes</h1>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Busca empresas no Google Maps. Só entra no CRM com citação literal e data.
+                        Busca empresas no Google Maps e salva direto no CRM.
                     </p>
                 </div>
                 <SearchForm
@@ -127,10 +185,10 @@ export function RadarPage() {
                     onFiltersChange={setFilters}
                     onSubmit={(vars) => {
                         setUltimaBusca(vars);
-                        // Lista nova, conjunto de apagados e overrides de score
-                        // zerados: nada da busca anterior vaza para esta.
+                        // Lista nova, conjunto de apagados e seleção zerados:
+                        // nada da busca anterior vaza para esta.
                         setApagados([]);
-                        setScoreOverrides({});
+                        setSelecionados(new Set());
                         search.mutate(vars);
                     }}
                 />
@@ -149,14 +207,30 @@ export function RadarPage() {
                     </div>
                 )}
 
+                {erroAoSalvar && (
+                    <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                        {erroAoSalvar}
+                    </div>
+                )}
+
                 {search.data && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {search.data.origin === 'cache'
-                            ? `Resultado do cache, buscado em ${new Date(search.data.cachedAt!).toLocaleString('pt-BR')}. Não gastou nada.`
-                            : `Busca ao vivo. Custo real: US$ ${search.data.costUsd.toFixed(4)}.`}
-                        {' '}
-                        {visiveis.length} de {results.length} empresas visíveis com os filtros atuais.
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {search.data.origin === 'cache'
+                                ? `Resultado do cache, buscado em ${new Date(search.data.cachedAt!).toLocaleString('pt-BR')}. Não gastou nada.`
+                                : `Busca ao vivo. Custo real: US$ ${search.data.costUsd.toFixed(4)}.`}
+                            {' '}
+                            {visiveis.length} de {results.length} empresas visíveis com os filtros atuais.
+                        </p>
+                        {selecionados.size > 0 && (
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary">{selecionados.size} marcados</Badge>
+                                <Button size="sm" disabled={salvandoLote} onClick={salvarSelecionados}>
+                                    {salvandoLote ? 'Salvando…' : `Salvar os ${selecionados.size} como leads`}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {!search.data && !search.isPending && (
@@ -172,38 +246,25 @@ export function RadarPage() {
                         <ResultCard
                             key={r.id}
                             result={r}
-                            onOpenReviews={setLendo}
-                            onSave={setSalvando}
+                            selected={selecionados.has(r.id)}
+                            onToggleSelect={alternarSelecao}
+                            onOpenDetail={setVerDetalhe}
+                            onSave={salvar}
                             onDelete={apagar}
+                            saving={salvandoId === r.id}
                             deleting={apagandoId === r.id}
                         />
                     ))}
                 </div>
             </section>
 
-            {lendo && (
-                <ReviewsPanel
-                    result={lendo}
-                    onClose={() => setLendo(null)}
-                    onUseQuote={(quote, date) => {
-                        setCitacaoSugerida({ quote, date });
-                        setSalvando(lendo);
-                        setLendo(null);
-                    }}
-                    onScoreResolved={(resultId, score, breakdown) => {
-                        setScoreOverrides((atuais) => ({ ...atuais, [resultId]: { score, breakdown } }));
-                    }}
-                />
-            )}
-
-            {salvando && (
-                <SaveToCrmModal
-                    key={citacaoSugerida?.quote ?? salvando.id}
-                    result={salvando}
-                    initialQuote={citacaoSugerida?.quote ?? ''}
-                    initialQuoteDate={citacaoSugerida?.date ?? ''}
-                    onClose={() => { setSalvando(null); setCitacaoSugerida(null); }}
-                    onSaved={() => { setSalvando(null); setCitacaoSugerida(null); }}
+            {verDetalhe && (
+                <ResultDetail
+                    result={verDetalhe}
+                    onClose={() => setVerDetalhe(null)}
+                    onSave={salvar}
+                    onDelete={(r) => { setVerDetalhe(null); void apagar(r); }}
+                    saving={salvandoId === verDetalhe.id}
                 />
             )}
         </div>

@@ -30,12 +30,7 @@ export function ScoreBreakdown({
                             item.matched ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'
                         )}
                     >
-                        <span>
-                            {item.label}
-                            {item.pending && (
-                                <span className="ml-1 italic">— pendente, puxe as avaliações</span>
-                            )}
-                        </span>
+                        <span>{item.label}</span>
                         <span className="tabular-nums font-medium">
                             {item.points > 0 ? `+${item.points}` : '0'}
                         </span>

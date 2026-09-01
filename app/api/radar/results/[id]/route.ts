@@ -11,9 +11,9 @@
  * do `DEALS_VIEW_KEY` que o Kanban renderiza, não a menciona), então um
  * soft-delete deixaria o card visível no funil sem nenhum rastro de origem.
  *
- * O PATCH grava `saved_deal_id` depois que `SaveToCrmModal` já criou o deal E
- * a nota de auditoria — sem isso o badge "Já está no CRM" nunca acende e o
- * DELETE acima nunca encontra o deal para desfazer junto.
+ * O PATCH grava `saved_deal_id` depois que `useSaveToCrm` já criou o deal —
+ * sem isso o badge "Já está no CRM" nunca acende e o DELETE acima nunca
+ * encontra o deal para desfazer junto.
  *
  * @module app/api/radar/results/[id]/route
  */
@@ -119,8 +119,7 @@ export async function DELETE(
 
 /**
  * Grava o id do deal criado a partir deste resultado do Radar. Chamado por
- * `SaveToCrmModal` só depois que o deal E a nota de auditoria já existem —
- * nunca antes, para não marcar como salvo algo que ainda pode falhar.
+ * `useSaveToCrm` depois que o deal já existe.
  */
 export async function PATCH(
     req: Request,

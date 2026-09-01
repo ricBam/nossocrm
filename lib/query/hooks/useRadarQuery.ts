@@ -12,7 +12,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SearchResponse } from '@/app/api/radar/search/route';
-import type { RadarReview, ScoreBreakdownItem } from '@/lib/radar/types';
 
 export const RADAR_BUDGET_KEY = ['radar', 'budget'] as const;
 
@@ -29,7 +28,6 @@ export interface RadarSearchVars {
   cidade: string;
   uf: string;
   maxResults: number;
-  withContacts?: boolean;
   refresh?: boolean;
 }
 
@@ -71,30 +69,6 @@ export const useRadarSearch = () => {
       if (data.origin === 'live') {
         queryClient.invalidateQueries({ queryKey: RADAR_BUDGET_KEY });
       }
-    },
-  });
-};
-
-/** Avaliações sob demanda de uma empresa. Também é mutation: custa por avaliação. */
-export const useRadarReviews = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<
-    { reviews: RadarReview[]; costUsd: number; score: number; breakdown: ScoreBreakdownItem[] },
-    Error,
-    { resultId: string; maxReviews: number }
-  >({
-    mutationFn: async (vars) => {
-      const res = await fetch('/api/radar/reviews', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(vars),
-      });
-      if (!res.ok) await readError(res);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RADAR_BUDGET_KEY });
     },
   });
 };

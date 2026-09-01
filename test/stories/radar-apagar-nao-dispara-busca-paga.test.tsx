@@ -58,6 +58,28 @@ vi.mock('@/lib/query/hooks/useRadarQuery', () => ({
     }),
 }));
 
+// `RadarPage` chama `useSaveToCrm` incondicionalmente (o botão Salvar vive no
+// card) — sem estes mocks o render quebraria mesmo esta story não testando
+// salvar.
+vi.mock('@/lib/query/hooks/useDealsQuery', () => ({
+    useCreateDealWithContact: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/lib/query/hooks/useBoardsQuery', () => ({
+    useDefaultBoard: () => ({
+        data: {
+            id: 'b0a1d000-0000-4000-8000-0000000000ff',
+            name: 'Prospecção R.A.F.O',
+            stages: [{ id: 'b0a1d000-0000-4000-8000-000000000000', label: 'Radar', order: 0 }],
+        },
+    }),
+}));
+vi.mock('@/context/AuthContext', () => ({
+    useAuth: () => ({ user: { id: 'u1', email: 'ric2bam@gmail.com' }, profile: { nickname: 'Ricardo' } }),
+}));
+vi.mock('@/lib/supabase/dealNotes', () => ({
+    dealNotesService: { createNote: vi.fn().mockResolvedValue({ error: null }) },
+}));
+
 const fetchMock = vi.fn();
 
 beforeEach(() => {
