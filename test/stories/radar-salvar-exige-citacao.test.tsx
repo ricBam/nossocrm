@@ -7,11 +7,22 @@ import type { RadarResultDTO } from '@/app/api/radar/search/route';
 
 const criarDeal = vi.fn().mockResolvedValue({ id: 'deal_1' });
 const excluirDeal = vi.fn().mockResolvedValue('deal_1');
+const excluirContato = vi.fn().mockResolvedValue('contact_1');
+const excluirEmpresa = vi.fn().mockResolvedValue('company_1');
 
 vi.mock('@/lib/query/hooks/useDealsQuery', () => ({
     useCreateDealWithContact: () => ({ mutateAsync: criarDeal, isPending: false }),
     useDeleteDeal: () => ({ mutateAsync: excluirDeal, isPending: false }),
 }));
+vi.mock('@/lib/query/hooks/useContactsQuery', () => ({
+    useDeleteContact: () => ({ mutateAsync: excluirContato, isPending: false }),
+    useDeleteCompany: () => ({ mutateAsync: excluirEmpresa, isPending: false }),
+}));
+// `SaveToCrmModal` grava `saved_deal_id` via PATCH depois que o deal e a nota
+// já existem. Padrão de mock de `fetch` global já usado em
+// `radar-apagar-exige-confirmacao.test.tsx`.
+const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ savedDealId: 'deal_1' }) });
+vi.stubGlobal('fetch', fetchMock);
 vi.mock('@/lib/query/hooks/useBoardsQuery', () => ({
     useDefaultBoard: () => ({
         data: {
@@ -236,5 +247,82 @@ describe('Salvar no CRM exige citação literal', () => {
 
         const citacaoInput = screen.getByLabelText(/citação literal/i) as HTMLTextAreaElement;
         expect(citacaoInput.disabled || citacaoInput.readOnly).toBe(true);
+    });
+
+    it('grava saved_deal_id no resultado do Radar quando o salvamento completa', async () => {
+        criarDeal.mockClear().mockResolvedValue({ id: 'deal_1' });
+        createNote.mockReset().mockResolvedValue({ error: null });
+        fetchMock.mockClear().mockResolvedValue({ ok: true, json: async () => ({ savedDealId: 'deal_1' }) });
+
+        renderModal();
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/api/radar/results/res_1',
+            expect.objectContaining({
+                method: 'PATCH',
+                body: JSON.stringify({ dealId: 'deal_1' }),
+            })
+        );
+    });
+
+    it('uma falha ao gravar saved_deal_id nao bloqueia o salvamento', async () => {
+        criarDeal.mockClear().mockResolvedValue({ id: 'deal_1' });
+        createNote.mockReset().mockResolvedValue({ error: null });
+        fetchMock.mockClear().mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'boom' }) });
+        const onSaved = vi.fn();
+        const onClose = vi.fn();
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(SaveToCrmModal, { result: RESULT, onClose, onSaved })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith('deal_1'));
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('cancelar depois de a nota falhar duas vezes remove o deal, o contato e a empresa', async () => {
+        criarDeal.mockClear();
+        excluirDeal.mockClear();
+        excluirContato.mockClear();
+        excluirEmpresa.mockClear();
+        criarDeal.mockResolvedValueOnce({ id: 'deal_1', contactId: 'contact_1', clientCompanyId: 'company_1' });
+        createNote.mockReset().mockResolvedValue({ error: new Error('timeout') });
+        fetchMock.mockClear().mockResolvedValue({ ok: true, json: async () => ({ savedDealId: 'deal_1' }) });
+        const onClose = vi.fn();
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(SaveToCrmModal, { result: RESULT, onClose, onSaved: () => {} })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
+        await screen.findByText(/nota de auditoria não foi gravada/i);
+
+        fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+        await vi.waitFor(() => expect(excluirDeal).toHaveBeenCalledWith('deal_1'));
+        await vi.waitFor(() => expect(excluirContato).toHaveBeenCalledWith({ id: 'contact_1' }));
+        await vi.waitFor(() => expect(excluirEmpresa).toHaveBeenCalledWith('company_1'));
+        await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 });

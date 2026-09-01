@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateDealWithContact, useDeleteDeal } from '@/lib/query/hooks/useDealsQuery';
+import { useDeleteContact, useDeleteCompany } from '@/lib/query/hooks/useContactsQuery';
 import { useDefaultBoard } from '@/lib/query/hooks/useBoardsQuery';
 import { dealNotesService } from '@/lib/supabase/dealNotes';
 import { useAuth } from '@/context/AuthContext';
@@ -92,6 +93,8 @@ export function SaveToCrmModal({
     const { data: board } = useDefaultBoard();
     const createDealWithContact = useCreateDealWithContact();
     const deleteDeal = useDeleteDeal();
+    const deleteContact = useDeleteContact();
+    const deleteCompany = useDeleteCompany();
 
     const [citacao, setCitacao] = useState(initialQuote);
     const [dataCitacao, setDataCitacao] = useState(initialQuoteDate);
@@ -101,9 +104,12 @@ export function SaveToCrmModal({
     // `salvando` — os dois nunca ficam true ao mesmo tempo, mas cada botão
     // trava no seu próprio estado para não reagir ao spinner errado.
     const [cancelando, setCancelando] = useState(false);
-    // Preenchido assim que o deal é criado. A partir daí, o botão nunca mais
-    // pode chamar createDealWithContact de novo — só retentar a nota.
+    // Preenchidos assim que o deal é criado (junto com contato e empresa, na
+    // mesma resposta de `createDealWithContact`). A partir daí, o botão nunca
+    // mais pode chamar createDealWithContact de novo — só retentar a nota.
     const [dealIdCriado, setDealIdCriado] = useState<string | null>(null);
+    const [contactIdCriado, setContactIdCriado] = useState<string | null>(null);
+    const [companyIdCriado, setCompanyIdCriado] = useState<string | null>(null);
 
     const p = result.place;
     // Primeiro estágio por ordem. Nunca um nome literal.
@@ -112,6 +118,32 @@ export function SaveToCrmModal({
     const podeSalvar = temCitacao && !!board && !!primeiroEstagio && !salvando;
     // O deal já existe, só falta a nota de auditoria pegar.
     const aguardandoRetentativaDeNota = dealIdCriado !== null;
+
+    /**
+     * Grava `saved_deal_id` no resultado do Radar depois que o deal E a nota
+     * já existem de verdade — essa é a garantia que importa. Se isto falhar,
+     * só o badge "Já está no CRM" e o link de apagar-junto ficam degradados;
+     * NUNCA bloqueia o usuário nem impede o modal de fechar.
+     */
+    async function gravarSavedDealId(dealId: string) {
+        try {
+            const res = await fetch(`/api/radar/results/${result.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dealId }),
+            });
+            if (!res.ok) {
+                console.error(
+                    `Radar: falha ao gravar saved_deal_id (resultado ${result.id}, deal ${dealId}): HTTP ${res.status}`
+                );
+            }
+        } catch (e) {
+            console.error(
+                `Radar: falha ao gravar saved_deal_id (resultado ${result.id}, deal ${dealId}):`,
+                e
+            );
+        }
+    }
 
     /**
      * Cria a nota de auditoria, com uma retentativa automática (falha
@@ -144,6 +176,7 @@ export function SaveToCrmModal({
                 );
                 return;
             }
+            await gravarSavedDealId(dealIdCriado);
             onSaved(dealIdCriado);
             onClose();
         } catch (e) {
@@ -155,10 +188,13 @@ export function SaveToCrmModal({
 
     /**
      * Cancelar. Enquanto nenhum deal existe, é só fechar. Depois que o deal
-     * foi criado e a nota ainda não pegou, cancelar sem desfazer o deal
-     * deixaria exatamente o buraco que este modal existe para fechar: negócio
-     * no CRM sem a citação que o justifica. Por isso o cancelamento aqui
-     * primeiro apaga o deal órfão, e só fecha se a remoção der certo — a
+     * (e, junto com ele, o contato e a empresa) foram criados e a nota ainda
+     * não pegou, cancelar sem desfazer os três deixaria exatamente o buraco
+     * que este modal existe para fechar: registros no CRM sem a citação que
+     * os justifica — e, como `companiesService.create`/`contactsService.create`
+     * não são upserts, repetir salvar-depois-cancelar duplicaria empresa e
+     * contato a cada ciclo. Por isso desfaz os três, na ordem inversa da
+     * criação (deal, contato, empresa), e só fecha se os três saírem — a
      * empresa continua na lista do Radar, pronta para salvar de novo.
      */
     async function cancelar() {
@@ -171,14 +207,37 @@ export function SaveToCrmModal({
         setErro(null);
         try {
             await deleteDeal.mutateAsync(dealIdCriado);
-            onClose();
         } catch (e) {
             setErro(
                 `Não foi possível desfazer o negócio criado sem a nota de auditoria: ${mensagemDeErro(e)}. O negócio continua no CRM sem a nota — tente cancelar de novo.`
             );
-        } finally {
             setCancelando(false);
+            return;
         }
+        if (contactIdCriado) {
+            try {
+                await deleteContact.mutateAsync({ id: contactIdCriado });
+            } catch (e) {
+                setErro(
+                    `O negócio foi desfeito, mas o contato criado junto com ele continua no CRM: ${mensagemDeErro(e)}. Tente cancelar de novo.`
+                );
+                setCancelando(false);
+                return;
+            }
+        }
+        if (companyIdCriado) {
+            try {
+                await deleteCompany.mutateAsync(companyIdCriado);
+            } catch (e) {
+                setErro(
+                    `O negócio e o contato foram desfeitos, mas a empresa criada junto com eles continua no CRM: ${mensagemDeErro(e)}. Tente cancelar de novo.`
+                );
+                setCancelando(false);
+                return;
+            }
+        }
+        setCancelando(false);
+        onClose();
     }
 
     async function salvar() {
@@ -240,6 +299,8 @@ export function SaveToCrmModal({
             });
 
             setDealIdCriado(criado.id);
+            setContactIdCriado(criado.contactId || null);
+            setCompanyIdCriado(criado.clientCompanyId || null);
 
             const erroNota = await criarNotaComRetryAutomatico(criado.id);
             if (erroNota) {
@@ -251,6 +312,7 @@ export function SaveToCrmModal({
                 return;
             }
 
+            await gravarSavedDealId(criado.id);
             onSaved(criado.id);
             onClose();
         } catch (e) {

@@ -3602,10 +3602,15 @@ git commit -m "feat(radar): tela de busca com estimativa de custo e lista pontua
 - Test: `test/stories/radar-salvar-exige-citacao.test.tsx`
 
 **Interfaces:**
-- Consumes: `useRadarReviews` de `@/lib/query/hooks/useRadarQuery`; `findAnchorMatches` de `@/lib/radar/anchors`; `useCreateDealWithContact` de `@/lib/query/hooks/useDealsQuery`; `useDefaultBoard` de `@/lib/query/hooks/useBoardsQuery`; `dealNotesService` de `@/lib/supabase/dealNotes`; `useAuth` de `@/context/AuthContext`.
+- Consumes: `useRadarReviews` de `@/lib/query/hooks/useRadarQuery`; `findAnchorMatches` de `@/lib/radar/anchors`; `useCreateDealWithContact`, `useDeleteDeal` de `@/lib/query/hooks/useDealsQuery`; `useDeleteContact`, `useDeleteCompany` de `@/lib/query/hooks/useContactsQuery`; `useDefaultBoard` de `@/lib/query/hooks/useBoardsQuery`; `dealNotesService` de `@/lib/supabase/dealNotes`; `useAuth` de `@/context/AuthContext`.
 - Produces: `ReviewsPanel`, `SaveToCrmModal`.
 
 **A regra deste task:** o botão de confirmar em `SaveToCrmModal` fica `disabled` enquanto `citacao.trim()` for vazio. Não existe outro caminho na tela que crie deal.
+
+**Correção pós-review (2026-08-31):** dois buracos fechados no mesmo commit da correção do Task 12.
+
+1. `cancelar()` desfazia só o deal criado por `useCreateDealWithContact`, deixando a empresa e o contato criados junto órfãos e permanentes — e, como `companiesService.create`/`contactsService.create` não são upserts, repetir salvar-depois-cancelar duplicava os dois a cada ciclo. Agora `cancelar()` captura `contactId`/`clientCompanyId` da resposta de `createDealWithContact.mutateAsync` (junto com o id do deal, sem estado extra além de dois `useState`) e desfaz os três na ordem inversa da criação — deal, contato, empresa — via `useDeleteDeal`, `useDeleteContact`, `useDeleteCompany`. Qualquer falha no meio interrompe o encadeamento, mantém o modal aberto e diz explicitamente quais registros ainda podem ter sobrado.
+2. `salvar()` e `retentarNota()` agora chamam `PATCH /api/radar/results/:id` (ver Task 12) depois que o deal E a nota de auditoria já existem, para gravar `saved_deal_id`. Uma falha nesse PATCH é só logada (`console.error`) e nunca bloqueia o usuário — o deal e a nota já estão corretos nesse ponto, que é o invariante que importa.
 
 - [ ] **Step 1: Escrever a story (que vai falhar)**
 
@@ -4273,9 +4278,11 @@ Expected: PASS, 10 testes.
 
 **Interfaces:**
 - Consumes: `createClient` de `@/lib/supabase/server`.
-- Produces: `DELETE /api/radar/results/:id` → `{ deletedResult: true, deletedDealId: string | null }`. `ResultCard` ganha a prop `onDelete: (r: RadarResultDTO) => void`.
+- Produces: `DELETE /api/radar/results/:id` → `{ deletedResult: true, deletedDealId: string | null }`. `PATCH /api/radar/results/:id` → `{ savedDealId: string }`. `ResultCard` ganha a prop `onDelete: (r: RadarResultDTO) => void`.
 
 **Por que existe:** a constituição exige procedência rastreável e caminho de remoção. Apagar só o deal deixaria o payload do Google Maps no banco; apagar só o `radar_results` deixaria o deal órfão da sua evidência. Este endpoint faz os dois: remove a linha do Radar e faz soft-delete do deal ligado a ela, seguindo o `deleted_at` que o resto do CRM já usa.
+
+**Correção pós-review (2026-08-31):** `saved_deal_id` era gravado só na `CREATE TABLE` e lido em vários lugares (badge "Já está no CRM" em `ResultCard`, e o próprio `DELETE` acima), mas nada jamais o escrevia — o `DELETE` sempre encontrava `saved_deal_id: null` e apagava só a linha do Radar, deixando o deal para trás no CRM (o inverso do propósito da rota). Adicionado `PATCH /api/radar/results/:id` (mesmo arquivo, mesmas convenções de auth/organização/`mustWrite` do `DELETE`) para gravar o vínculo; chamado por `SaveToCrmModal` (Task 11) só depois que o deal e a nota de auditoria já existem. Ver Task 11 para o lado do cliente.
 
 - [ ] **Step 1: Escrever o teste (que vai falhar)**
 
