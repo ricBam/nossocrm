@@ -1,0 +1,87 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
+vi.mock('@/lib/supabase/server', () => ({ createClient }));
+
+import { DELETE } from '@/app/api/radar/results/[id]/route';
+
+const ORG = 'dc09e9de-2030-426b-9dcd-1beae85bac5e';
+const USER = 'c2fce80e-77f6-4c85-9d41-f98d9a2aef16';
+const RESULT_ID = '11111111-1111-4111-8111-111111111111';
+
+const deals = { update: vi.fn(), eq: vi.fn() };
+const results = { delete: vi.fn(), eq: vi.fn() };
+
+function fakeSupabase(opts: { user?: { id: string } | null; row?: { id: string; saved_deal_id: string | null } | null }) {
+    const dealsBuilder: Record<string, unknown> = {
+        update: (v: unknown) => { deals.update(v); return dealsBuilder; },
+        eq: (...a: unknown[]) => { deals.eq(...a); return dealsBuilder; },
+        then: (r: (v: { error: null }) => unknown) => r({ error: null }),
+    };
+    const resultsBuilder: Record<string, unknown> = {
+        select: () => resultsBuilder,
+        delete: () => { results.delete(); return resultsBuilder; },
+        eq: (...a: unknown[]) => { results.eq(...a); return resultsBuilder; },
+        maybeSingle: async () => ({ data: opts.row === undefined ? { id: RESULT_ID, saved_deal_id: null } : opts.row, error: null }),
+        then: (r: (v: { error: null }) => unknown) => r({ error: null }),
+    };
+    return {
+        auth: { getUser: async () => ({ data: { user: opts.user === undefined ? { id: USER } : opts.user }, error: null }) },
+        from: (name: string) => {
+            if (name === 'profiles') {
+                return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { organization_id: ORG }, error: null }) }) }) };
+            }
+            if (name === 'deals') return dealsBuilder;
+            return resultsBuilder;
+        },
+    };
+}
+
+function req() {
+    return new Request(`http://localhost/api/radar/results/${RESULT_ID}`, { method: 'DELETE' });
+}
+const ctx = { params: Promise.resolve({ id: RESULT_ID }) };
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    deals.update.mockClear();
+    results.delete.mockClear();
+});
+
+describe('DELETE /api/radar/results/:id', () => {
+    it('responde 401 sem sessão e não apaga nada', async () => {
+        createClient.mockResolvedValue(fakeSupabase({ user: null }));
+        const res = await DELETE(req(), ctx);
+        expect(res.status).toBe(401);
+        expect(results.delete).not.toHaveBeenCalled();
+    });
+
+    it('responde 404 quando o resultado não é da organização do usuário', async () => {
+        createClient.mockResolvedValue(fakeSupabase({ row: null }));
+        const res = await DELETE(req(), ctx);
+        expect(res.status).toBe(404);
+        expect(results.delete).not.toHaveBeenCalled();
+    });
+
+    it('apaga a linha do Radar quando não há deal salvo', async () => {
+        createClient.mockResolvedValue(fakeSupabase({ row: { id: RESULT_ID, saved_deal_id: null } }));
+        const res = await DELETE(req(), ctx);
+        const json = await res.json();
+        expect(res.status).toBe(200);
+        expect(json).toEqual({ deletedResult: true, deletedDealId: null });
+        expect(results.delete).toHaveBeenCalled();
+        expect(deals.update).not.toHaveBeenCalled();
+    });
+
+    it('faz soft-delete do deal ligado e depois apaga a linha do Radar', async () => {
+        createClient.mockResolvedValue(fakeSupabase({ row: { id: RESULT_ID, saved_deal_id: 'deal_1' } }));
+        const res = await DELETE(req(), ctx);
+        const json = await res.json();
+        expect(res.status).toBe(200);
+        expect(json).toEqual({ deletedResult: true, deletedDealId: 'deal_1' });
+        expect(deals.update).toHaveBeenCalledWith(
+            expect.objectContaining({ deleted_at: expect.any(String) })
+        );
+        expect(results.delete).toHaveBeenCalled();
+    });
+});

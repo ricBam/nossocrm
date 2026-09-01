@@ -9,6 +9,7 @@ import { ResultCard } from './components/ResultCard';
 import { ReviewsPanel } from './components/ReviewsPanel';
 import { SaveToCrmModal } from './components/SaveToCrmModal';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
+import type { RadarSearchVars } from '@/lib/query/hooks/useRadarQuery';
 
 const FILTROS_INICIAIS: SearchFilters = {
     semSite: false,
@@ -50,9 +51,24 @@ export function RadarPage() {
     const [lendo, setLendo] = useState<RadarResultDTO | null>(null);
     const [salvando, setSalvando] = useState<RadarResultDTO | null>(null);
     const [citacaoSugerida, setCitacaoSugerida] = useState<{ quote: string; date: string | null } | null>(null);
+    const [apagando, setApagando] = useState(false);
+    const [ultimaBusca, setUltimaBusca] = useState<RadarSearchVars | null>(null);
 
     const results = search.data?.results ?? [];
     const visiveis = useMemo(() => aplicarFiltros(results, filters), [results, filters]);
+
+    // Recarrega a busca com `refresh: false` para pegar a lista atualizada sem
+    // gastar de novo — cai no cache dos 30 dias.
+    async function apagar(r: RadarResultDTO) {
+        setApagando(true);
+        try {
+            const res = await fetch(`/api/radar/results/${r.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Falha ao apagar.');
+            if (ultimaBusca) await search.mutateAsync({ ...ultimaBusca, refresh: false });
+        } finally {
+            setApagando(false);
+        }
+    }
 
     return (
         <div className="grid gap-6 p-4 lg:grid-cols-[320px_1fr]">
@@ -70,7 +86,7 @@ export function RadarPage() {
                     isSearching={search.isPending}
                     filters={filters}
                     onFiltersChange={setFilters}
-                    onSubmit={(vars) => search.mutate(vars)}
+                    onSubmit={(vars) => { setUltimaBusca(vars); search.mutate(vars); }}
                 />
             </aside>
 
@@ -106,6 +122,8 @@ export function RadarPage() {
                             result={r}
                             onOpenReviews={setLendo}
                             onSave={setSalvando}
+                            onDelete={apagar}
+                            deleting={apagando}
                         />
                     ))}
                 </div>

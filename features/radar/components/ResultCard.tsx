@@ -11,10 +11,15 @@ export function ResultCard({
     result,
     onOpenReviews,
     onSave,
+    onDelete,
+    deleting = false,
 }: {
     result: RadarResultDTO;
     onOpenReviews: (r: RadarResultDTO) => void;
     onSave: (r: RadarResultDTO) => void;
+    onDelete: (r: RadarResultDTO) => void;
+    /** Desabilita o botão Apagar enquanto uma exclusão está em andamento. */
+    deleting?: boolean;
 }) {
     const p = result.place;
 
@@ -55,6 +60,15 @@ export function ResultCard({
                 </Button>
                 <Button size="sm" onClick={() => onSave(result)}>
                     Salvar no CRM
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto text-red-600"
+                    disabled={deleting}
+                    onClick={() => onDelete(result)}
+                >
+                    Apagar
                 </Button>
             </div>
         </Card>
