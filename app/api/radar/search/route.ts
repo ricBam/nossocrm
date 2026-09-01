@@ -246,11 +246,22 @@ export async function POST(req: Request) {
     // vistos) e saber, para cada lugar que este run devolveu, se a linha já
     // existe, qual busca a descobriu e se ela já foi enriquecida com
     // avaliações. Sem isso a regravação abaixo destruiria o enriquecimento.
+    // Escopado aos place_ids deste run: sem isso, `max_rows = 1000` do
+    // PostgREST (supabase/config.toml) trunca em silêncio organizações com
+    // mais de 1000 linhas em `radar_results`, e um lugar fora da janela
+    // truncada perde `search_id`/`reviews_fetched_at` — a re-busca então
+    // recalcula o score SEM avaliações por cima de uma linha que já as tem.
+    // O run já está limitado a MAX_RESULTS_HARD_CAP, então esta lista nunca
+    // pode ultrapassar 1000.
+    const placeIdsDoRun = run.places.map(p => p.placeId);
     const [{ data: seen }, { data: contacts }] = await Promise.all([
-      supabase
-        .from('radar_results')
-        .select('id, place_id, search_id, reviews_fetched_at')
-        .eq('organization_id', organizationId),
+      placeIdsDoRun.length > 0
+        ? supabase
+          .from('radar_results')
+          .select('id, place_id, search_id, reviews_fetched_at')
+          .eq('organization_id', organizationId)
+          .in('place_id', placeIdsDoRun)
+        : Promise.resolve({ data: [] as ExistingResultRow[], error: null }),
       supabase.from('contacts').select('phone').eq('organization_id', organizationId).is('deleted_at', null),
     ]);
     const seenRows = (seen ?? []) as ExistingResultRow[];
@@ -351,12 +362,23 @@ export async function POST(req: Request) {
         if (!outcome.success) falhas.push(outcome);
       }
 
-      const { data: savedRows } = await supabase
-        .from('radar_results')
-        .select('id, place_id, saved_deal_id')
-        .eq('organization_id', organizationId)
-        .in('place_id', placeIds);
-      salvas.push(...((savedRows ?? []) as { id: string; place_id: string; saved_deal_id: string | null }[]));
+      // Esta leitura decide se a filiação abaixo roda: um erro aqui, se
+      // ignorado, esvazia `salvas` em silêncio, pula o upsert de
+      // `radar_search_results` e devolve uma busca cacheável com zero
+      // linhas de filiação — o mesmo sintoma que o upsert falho já cobre.
+      const savedRowsOutcome = await tryWrite(
+        supabase
+          .from('radar_results')
+          .select('id, place_id, saved_deal_id')
+          .eq('organization_id', organizationId)
+          .in('place_id', placeIds),
+        `ler saved_deal_id de radar_results para search_id=${searchId}`
+      );
+      if (!savedRowsOutcome.success) {
+        falhas.push(savedRowsOutcome);
+      } else {
+        salvas.push(...((savedRowsOutcome.data ?? []) as { id: string; place_id: string; saved_deal_id: string | null }[]));
+      }
 
       // Filiação desta busca. Sem estas linhas a busca existe, é cacheável e
       // devolve zero resultados — o mesmo sintoma que o roubo de `search_id`

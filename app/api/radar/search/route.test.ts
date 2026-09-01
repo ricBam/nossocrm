@@ -28,6 +28,12 @@ function fakeSupabase(opts: {
   resultRows?: unknown[];
   /** Quando true, o upsert em `radar_results` devolve um erro (Finding 1). */
   upsertFails?: boolean;
+  /**
+   * Quando true, a SEGUNDA leitura via `.select()` em `radar_results` (a
+   * leitura de `savedRows`, que roda depois da leitura de `existentes` e do
+   * upsert) devolve um erro do Postgrest.
+   */
+  savedRowsReadFails?: boolean;
 }) {
   // A rota chama `.from('radar_searches')` duas vezes: primeiro para somar o
   // gasto do ciclo (spentThisCycle), depois — se não houver refresh — para o
@@ -36,6 +42,7 @@ function fakeSupabase(opts: {
   // (`searchRows`), senão o `.order().limit()` do cache quebraria em cima do
   // atalho usado pela soma do ciclo.
   let radarSearchesCalls = 0;
+  let radarResultsSelectCalls = 0;
   const updateCalls: unknown[] = [];
   const table = (name: string) => {
     const rows =
@@ -54,7 +61,11 @@ function fakeSupabase(opts: {
                 : [];
     const builder: Record<string, unknown> = {
       data: rows, error: null,
-      select: () => builder, eq: () => builder, gte: () => builder, is: () => builder,
+      select: () => {
+        if (name === 'radar_results') radarResultsSelectCalls += 1;
+        return builder;
+      },
+      eq: () => builder, gte: () => builder, is: () => builder,
       in: () => builder,
       order: () => builder, limit: () => builder,
       insert: () => ({ select: () => ({ single: async () => ({ data: { id: 'search_1' }, error: null }) }) }),
@@ -67,7 +78,15 @@ function fakeSupabase(opts: {
         return builder;
       },
       maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
-      then: (r: (v: { data: unknown[]; error: null }) => unknown) => r({ data: rows, error: null }),
+      then: (r: (v: { data: unknown[] | null; error: unknown }) => unknown) => {
+        // A leitura de `existentes` é a 1ª `.select()` em `radar_results`
+        // desta requisição; a de `savedRows` é a 2ª (roda depois do upsert,
+        // que não passa por `.select()`).
+        if (name === 'radar_results' && opts.savedRowsReadFails && radarResultsSelectCalls === 2) {
+          return r({ data: null, error: { message: 'savedRows falhou (teste)' } });
+        }
+        return r({ data: rows, error: null });
+      },
     };
     if (name === 'radar_searches') radarSearchesCalls += 1;
     if (name === 'radar_searches' && opts.spentRows && radarSearchesCalls === 1) {
@@ -231,6 +250,106 @@ describe('POST /api/radar/search — execução ao vivo', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('marca partial e loga o PostgrestError quando a leitura de savedRows falha', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const supabase = fakeSupabase({ savedRowsReadFails: true });
+    createClient.mockResolvedValue(supabase);
+    runPlacesSearch.mockResolvedValue({
+      runId: 'run_1',
+      finished: true,
+      costUsd: 0.0131,
+      places: [{
+        placeId: 'ChIJ_1', title: 'Clínica A', categoryName: 'Clínica odontológica',
+        address: null, city: 'Resende', phone: '+552433001122', website: null, socials: [],
+        totalScore: 4.2, reviewsCount: 90, url: null,
+        source: 'google_maps', collectedAt: '2026-08-31T00:00:00.000Z',
+      }],
+    });
+
+    const res = await POST(req(VALID));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.origin).toBe('live');
+    // O run já foi pago — os resultados em memória não podem sumir da tela.
+    expect(json.results).toHaveLength(1);
+    // Sem `salvas`, a filiação em `radar_search_results` não pode ser tratada
+    // como sucesso silencioso: a busca fica partial, nunca cacheável.
+    expect(json.partial).toBe(true);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ler saved_deal_id'),
+      expect.objectContaining({ message: 'savedRows falhou (teste)' })
+    );
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('POST /api/radar/search — leitura de existentes escopada ao run atual', () => {
+  it('filtra radar_results por place_id do run atual, não lê a tabela inteira', async () => {
+    const inCalls: { columns: string; column: string; values: unknown[] }[] = [];
+    let lastSelectColumns = '';
+    const supabase = {
+      auth: { getUser: async () => ({ data: { user: { id: USER } }, error: null }) },
+      from: (name: string) => {
+        const builder: Record<string, unknown> = {
+          select: (cols: string) => { lastSelectColumns = cols; return builder; },
+          eq: () => builder,
+          gte: () => builder,
+          is: () => builder,
+          in: (col: string, vals: unknown[]) => {
+            if (name === 'radar_results') {
+              inCalls.push({ columns: lastSelectColumns, column: col, values: vals });
+            }
+            return builder;
+          },
+          order: () => builder,
+          limit: () => builder,
+          insert: () => ({ select: () => ({ single: async () => ({ data: { id: 'search_1' }, error: null }) }) }),
+          upsert: async () => ({ data: null, error: null }),
+          update: () => builder,
+          maybeSingle: async () => ({
+            data: name === 'profiles' ? { organization_id: ORG, role: 'admin' } : null,
+            error: null,
+          }),
+          then: (r: (v: { data: unknown[]; error: null }) => unknown) => r({ data: [], error: null }),
+        };
+        return builder;
+      },
+    };
+    createClient.mockResolvedValue(supabase);
+    runPlacesSearch.mockResolvedValue({
+      runId: 'run_1',
+      finished: true,
+      costUsd: 0.01,
+      places: [
+        {
+          placeId: 'ChIJ_a', title: 'A', categoryName: null, address: null, city: 'Resende',
+          phone: null, website: null, socials: [], totalScore: null, reviewsCount: null, url: null,
+          source: 'google_maps', collectedAt: '2026-08-31T00:00:00.000Z',
+        },
+        {
+          placeId: 'ChIJ_b', title: 'B', categoryName: null, address: null, city: 'Resende',
+          phone: null, website: null, socials: [], totalScore: null, reviewsCount: null, url: null,
+          source: 'google_maps', collectedAt: '2026-08-31T00:00:00.000Z',
+        },
+      ],
+    });
+
+    const res = await POST(req(VALID));
+    expect(res.status).toBe(200);
+
+    // Sem escopo, `max_rows = 1000` do PostgREST trunca em silêncio
+    // organizações com mais de 1000 linhas em `radar_results`; um lugar fora
+    // da janela truncada perde `search_id`/`reviews_fetched_at` e a re-busca
+    // recalcula o score SEM avaliações por cima de uma linha que já as tem.
+    const leituraDeExistentes = inCalls.find(c => c.columns.includes('reviews_fetched_at'));
+    expect(leituraDeExistentes).toBeDefined();
+    expect(leituraDeExistentes!.column).toBe('place_id');
+    expect((leituraDeExistentes!.values as string[]).slice().sort()).toEqual(['ChIJ_a', 'ChIJ_b']);
+  });
+});
+
+describe('POST /api/radar/search — módulo Apify', () => {
   it('responde 503 com mensagem clara quando o token não está configurado', async () => {
     const { ApifyConfigError } = await vi.importActual<typeof import('@/lib/radar/apify')>('@/lib/radar/apify');
     createClient.mockResolvedValue(fakeSupabase({}));
