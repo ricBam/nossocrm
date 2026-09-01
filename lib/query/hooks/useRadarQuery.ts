@@ -82,7 +82,7 @@ export const useRadarReviews = () => {
   return useMutation<
     { reviews: RadarReview[]; costUsd: number },
     Error,
-    { resultId: string; placeId: string; maxReviews: number }
+    { resultId: string; maxReviews: number }
   >({
     mutationFn: async (vars) => {
       const res = await fetch('/api/radar/reviews', {

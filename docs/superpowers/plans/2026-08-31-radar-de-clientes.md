@@ -2532,7 +2532,7 @@ git commit -m "feat(radar): rota de busca com cache 30d, teto de gasto e custo r
   - `RADAR_BUDGET_KEY: readonly ['radar','budget']`
   - `useRadarBudget(): UseQueryResult<BudgetSnapshot>` com `interface BudgetSnapshot { spentUsd, budgetUsd, remainingUsd, level, cycleStart }`
   - `useRadarSearch(): UseMutationResult<SearchResponse, Error, RadarSearchVars>` com `interface RadarSearchVars { nicho, cidade, uf, maxResults, withContacts?, refresh? }`
-  - `useRadarReviews(): UseMutationResult<{ reviews: RadarReview[]; costUsd: number }, Error, { resultId: string; placeId: string; maxReviews: number }>`
+  - `useRadarReviews(): UseMutationResult<{ reviews: RadarReview[]; costUsd: number }, Error, { resultId: string; maxReviews: number }>`
 
 **A regra que este arquivo existe para garantir:** a busca é `useMutation`, nunca `useQuery`. Uma `useQuery` com key derivada do formulário dispararia a cada tecla e queimaria o teto em minutos.
 
@@ -2717,7 +2717,7 @@ export const useRadarReviews = () => {
   return useMutation<
     { reviews: RadarReview[]; costUsd: number },
     Error,
-    { resultId: string; placeId: string; maxReviews: number }
+    { resultId: string; maxReviews: number }
   >({
     mutationFn: async (vars) => {
       const res = await fetch('/api/radar/reviews', {
@@ -2758,7 +2758,7 @@ git commit -m "feat(radar): hooks de busca por mutation e orcamento do ciclo"
 - Consumes: `runReviewsScrape` de `@/lib/radar/apify`; `computeScore` de `@/lib/radar/score`; `rankReviewsByAnchor` de `@/lib/radar/anchors`; `estimateReviewsCost`, `budgetVerdict`, `currentCycleStart`, `monthlyBudgetUsd` de `@/lib/radar/pricing`.
 - Produces: `POST /api/radar/reviews` → `{ reviews: RadarReview[]; costUsd: number; score: number; breakdown: ScoreBreakdownItem[] }`
 
-**Comportamento:** se `radar_results.reviews` já estiver preenchido, devolve do banco com `costUsd: 0` — reabrir uma empresa já lida não gasta nada. Depois de puxar, recalcula o score **com** as avaliações (o +3 sai de pendente) e regrava `score` e `score_breakdown`.
+**Comportamento:** se `radar_results.reviews_fetched_at` já estiver preenchido, devolve do banco com `costUsd: 0` — reabrir uma empresa já lida não gasta nada, mesmo quando a coleta anterior devolveu zero avaliações (a checagem é sobre TER buscado, nunca sobre `reviews.length > 0`, senão uma empresa sem avaliações batendo com o âncora seria recobrada para sempre). Depois de puxar, recalcula o score **com** as avaliações (o +3 sai de pendente) e regrava `score` e `score_breakdown`. O `placeId` usado no scrape é sempre o da linha `radar_results` já autorizada (`place.placeId`) — nunca um valor vindo do corpo da requisição, que não é aceito no schema.
 
 - [ ] **Step 1: Escrever a rota**
 
@@ -2793,7 +2793,6 @@ const MAX_REVIEWS_HARD_CAP = 20;
 
 const BodySchema = z.object({
   resultId: z.string().uuid(),
-  placeId: z.string().trim().min(1),
   maxReviews: z.number().int().min(1).max(MAX_REVIEWS_HARD_CAP),
 });
 
@@ -2811,7 +2810,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const { resultId, placeId, maxReviews } = parsed.data;
+    const { resultId, maxReviews } = parsed.data;
 
     const { data: profile } = await supabase
       .from('profiles').select('organization_id').eq('id', auth.user.id).maybeSingle();
@@ -2822,7 +2821,7 @@ export async function POST(req: Request) {
 
     const { data: row } = await supabase
       .from('radar_results')
-      .select('id, payload, reviews')
+      .select('id, payload, reviews, reviews_fetched_at')
       .eq('id', resultId)
       .eq('organization_id', organizationId)
       .maybeSingle();
@@ -2831,12 +2830,19 @@ export async function POST(req: Request) {
 
     const place = (row as { payload: RadarPlace }).payload;
     const cached = (row as { reviews: RadarReview[] | null }).reviews;
+    const fetchedAt = (row as { reviews_fetched_at: string | null }).reviews_fetched_at;
 
-    // Já lidas antes: devolve do banco, sem gastar.
-    if (cached && cached.length > 0) {
-      const s = computeScore(place, { reviews: cached });
+    // Já buscadas antes — mesmo que o resultado tenha sido zero avaliações —
+    // devolve do banco, sem gastar. A checagem é sobre TER buscado, não sobre
+    // quantas avaliações vieram: `cached.length > 0` recobraria para sempre uma
+    // empresa que legitimamente não tem avaliações batendo com o âncora.
+    if (fetchedAt) {
+      const reviews = cached ?? [];
+      const s = computeScore(place, { reviews });
+      // Já vem ordenado do momento em que foi gravado — reordenar de novo é
+      // trabalho redundante numa ordenação pura.
       return NextResponse.json({
-        reviews: rankReviewsByAnchor(cached),
+        reviews,
         costUsd: 0,
         score: s.score,
         breakdown: s.breakdown,
@@ -2864,19 +2870,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const run = await runReviewsScrape({ placeId, maxReviews });
+    // O placeId vem SEMPRE da linha autorizada, nunca do corpo da requisição —
+    // um placeId arbitrário no body cobraria a organização por um lugar
+    // diferente e gravaria avaliações alheias dentro deste registro.
+    const run = await runReviewsScrape({ placeId: place.placeId, maxReviews });
     const ranked = rankReviewsByAnchor(run.reviews);
     const s = computeScore(place, { reviews: ranked });
 
     // O gasto entra no acumulado do ciclo como uma "busca" de origem live.
     // Marcada como parcial quando o run não chegou a SUCCEEDED — o dinheiro saiu
     // e precisa contar, mas a linha não representa uma coleta completa.
-    await supabase.from('radar_searches').insert({
+    const { error: insertError } = await supabase.from('radar_searches').insert({
       organization_id: organizationId,
       nicho: `avaliações: ${place.title}`,
       cidade: place.city ?? '-',
       uf: '--',
-      params: { kind: 'reviews', placeId, maxReviews },
+      params: { kind: 'reviews', placeId: place.placeId, maxReviews },
       apify_run_id: run.runId,
       cost_usd: run.costUsd,
       origin: 'live',
@@ -2884,14 +2893,23 @@ export async function POST(req: Request) {
       places_count: 1,
       created_by: auth.user.id,
     });
+    if (insertError) {
+      // Esse gasto já saiu no Apify e some do teto do ciclo se não for
+      // reconciliado à mão — visibilidade máxima.
+      console.error(
+        `[radar/reviews] FALHA ao registrar gasto em radar_searches — organização ${organizationId}, run ${run.runId}, costUsd ${run.costUsd} NÃO CONTABILIZADO:`,
+        insertError
+      );
+    }
 
     // Só persistimos as avaliações quando o run terminou. Um resultado parcial
     // gravado aqui viraria cache permanente: a checagem lá em cima devolve o que
     // estiver em `reviews` sem nunca reconsultar o Apify, então uma coleta pela
     // metade ficaria congelada para sempre. Devolvemos o parcial para leitura,
     // sem gravar, e a próxima tentativa busca de novo.
+    let persisted = false;
     if (run.finished) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('radar_results')
         .update({
           reviews: ranked,
@@ -2903,6 +2921,11 @@ export async function POST(req: Request) {
         })
         .eq('id', resultId)
         .eq('organization_id', organizationId);
+      if (updateError) {
+        console.error(`[radar/reviews] FALHA ao gravar avaliações em radar_results ${resultId}:`, updateError);
+      } else {
+        persisted = true;
+      }
     }
 
     return NextResponse.json({
@@ -2910,9 +2933,9 @@ export async function POST(req: Request) {
       costUsd: run.costUsd,
       score: s.score,
       breakdown: s.breakdown,
-      // false quando o run não terminou: a lista pode estar incompleta e NÃO foi
-      // gravada, então uma nova tentativa vai buscar de novo.
-      persisted: run.finished,
+      // Reflete o que realmente foi gravado, não apenas se o run terminou —
+      // um update que falhou não pode ser reportado como sucesso.
+      persisted,
     });
   } catch (err) {
     if (err instanceof ApifyConfigError) {
@@ -3922,7 +3945,6 @@ export function ReviewsPanel({
                         onClick={async () => {
                             const out = await puxar.mutateAsync({
                                 resultId: result.id,
-                                placeId: result.place.placeId,
                                 maxReviews: MAX_REVIEWS,
                             });
                             setReviews(out.reviews);
