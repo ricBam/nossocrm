@@ -6,9 +6,11 @@ import { SaveToCrmModal } from '@/features/radar/components/SaveToCrmModal';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
 
 const criarDeal = vi.fn().mockResolvedValue({ id: 'deal_1' });
+const excluirDeal = vi.fn().mockResolvedValue('deal_1');
 
 vi.mock('@/lib/query/hooks/useDealsQuery', () => ({
     useCreateDealWithContact: () => ({ mutateAsync: criarDeal, isPending: false }),
+    useDeleteDeal: () => ({ mutateAsync: excluirDeal, isPending: false }),
 }));
 vi.mock('@/lib/query/hooks/useBoardsQuery', () => ({
     useDefaultBoard: () => ({
@@ -170,5 +172,69 @@ describe('Salvar no CRM exige citação literal', () => {
         expect(conteudo).toContain('> Liguei três vezes.');
         expect(conteudo).toContain('> Ninguém atendeu.');
         expect(conteudo).toContain('> Desisti.');
+    });
+
+    it('cancelar depois de a nota falhar desfaz o deal recem-criado', async () => {
+        criarDeal.mockClear();
+        excluirDeal.mockClear();
+        createNote.mockReset().mockResolvedValue({ error: new Error('timeout') });
+        const onClose = vi.fn();
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(SaveToCrmModal, { result: RESULT, onClose, onSaved: () => {} })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
+        expect(await screen.findByText(/nota de auditoria não foi gravada/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+        await vi.waitFor(() => expect(excluirDeal).toHaveBeenCalledWith('deal_1'));
+        await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    it('cancelar antes de existir deal nao apaga nada', () => {
+        excluirDeal.mockClear();
+        const onClose = vi.fn();
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(SaveToCrmModal, { result: RESULT, onClose, onSaved: () => {} })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+        expect(excluirDeal).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalled();
+    });
+
+    it('trava a citação depois que o deal existe, para a nota nao poder divergir', async () => {
+        criarDeal.mockClear();
+        createNote.mockReset().mockResolvedValue({ error: new Error('timeout') });
+
+        renderModal();
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
+        await screen.findByText(/nota de auditoria não foi gravada/i);
+
+        const citacaoInput = screen.getByLabelText(/citação literal/i) as HTMLTextAreaElement;
+        expect(citacaoInput.disabled || citacaoInput.readOnly).toBe(true);
     });
 });

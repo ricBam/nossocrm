@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useCreateDealWithContact } from '@/lib/query/hooks/useDealsQuery';
+import { useCreateDealWithContact, useDeleteDeal } from '@/lib/query/hooks/useDealsQuery';
 import { useDefaultBoard } from '@/lib/query/hooks/useBoardsQuery';
 import { dealNotesService } from '@/lib/supabase/dealNotes';
 import { useAuth } from '@/context/AuthContext';
@@ -91,11 +91,16 @@ export function SaveToCrmModal({
     const { user, profile } = useAuth();
     const { data: board } = useDefaultBoard();
     const createDealWithContact = useCreateDealWithContact();
+    const deleteDeal = useDeleteDeal();
 
     const [citacao, setCitacao] = useState(initialQuote);
     const [dataCitacao, setDataCitacao] = useState(initialQuoteDate);
     const [erro, setErro] = useState<string | null>(null);
     const [salvando, setSalvando] = useState(false);
+    // Cancelar desfazendo o deal órfão é uma operação de rede à parte de
+    // `salvando` — os dois nunca ficam true ao mesmo tempo, mas cada botão
+    // trava no seu próprio estado para não reagir ao spinner errado.
+    const [cancelando, setCancelando] = useState(false);
     // Preenchido assim que o deal é criado. A partir daí, o botão nunca mais
     // pode chamar createDealWithContact de novo — só retentar a nota.
     const [dealIdCriado, setDealIdCriado] = useState<string | null>(null);
@@ -145,6 +150,34 @@ export function SaveToCrmModal({
             setErro(e instanceof Error ? e.message : 'Falha ao gravar a nota de auditoria.');
         } finally {
             setSalvando(false);
+        }
+    }
+
+    /**
+     * Cancelar. Enquanto nenhum deal existe, é só fechar. Depois que o deal
+     * foi criado e a nota ainda não pegou, cancelar sem desfazer o deal
+     * deixaria exatamente o buraco que este modal existe para fechar: negócio
+     * no CRM sem a citação que o justifica. Por isso o cancelamento aqui
+     * primeiro apaga o deal órfão, e só fecha se a remoção der certo — a
+     * empresa continua na lista do Radar, pronta para salvar de novo.
+     */
+    async function cancelar() {
+        if (cancelando || salvando) return;
+        if (!dealIdCriado) {
+            onClose();
+            return;
+        }
+        setCancelando(true);
+        setErro(null);
+        try {
+            await deleteDeal.mutateAsync(dealIdCriado);
+            onClose();
+        } catch (e) {
+            setErro(
+                `Não foi possível desfazer o negócio criado sem a nota de auditoria: ${mensagemDeErro(e)}. O negócio continua no CRM sem a nota — tente cancelar de novo.`
+            );
+        } finally {
+            setCancelando(false);
         }
     }
 
@@ -243,13 +276,16 @@ export function SaveToCrmModal({
                     <textarea
                         id="radar-citacao"
                         rows={4}
-                        className="w-full rounded-md border border-slate-200 bg-transparent p-2 text-sm dark:border-slate-700"
+                        className="w-full rounded-md border border-slate-200 bg-transparent p-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-70 dark:border-slate-700 dark:disabled:bg-slate-800"
                         value={citacao}
                         onChange={(e) => setCitacao(e.target.value)}
                         placeholder="Cole o trecho da avaliação, ou escreva sua observação à mão."
+                        disabled={aguardandoRetentativaDeNota}
                     />
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Sem citação não há lead. Alvo é dor reclamada publicamente, nunca ausência.
+                        {aguardandoRetentativaDeNota
+                            ? 'Citação travada: o negócio já foi criado com este texto. A nota tem de sair igual a ele.'
+                            : 'Sem citação não há lead. Alvo é dor reclamada publicamente, nunca ausência.'}
                     </p>
                 </div>
 
@@ -260,14 +296,20 @@ export function SaveToCrmModal({
                         type="date"
                         value={dataCitacao}
                         onChange={(e) => setDataCitacao(e.target.value)}
+                        disabled={aguardandoRetentativaDeNota}
                     />
+                    {aguardandoRetentativaDeNota && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Data travada junto com a citação.
+                        </p>
+                    )}
                 </div>
 
                 {erro && <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>}
 
                 <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={onClose} disabled={salvando}>
-                        Cancelar
+                    <Button variant="outline" onClick={cancelar} disabled={salvando || cancelando}>
+                        {cancelando ? 'Cancelando…' : 'Cancelar'}
                     </Button>
                     <Button
                         onClick={aguardandoRetentativaDeNota ? retentarNota : salvar}

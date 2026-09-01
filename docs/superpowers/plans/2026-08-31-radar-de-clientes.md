@@ -4228,6 +4228,39 @@ git add features/radar test/stories/radar-salvar-exige-citacao.test.tsx
 git commit -m "feat(radar): painel de avaliacoes com destaque do ancora e salvamento com citacao obrigatoria"
 ```
 
+- [ ] **Step 10: Fechar as duas brechas do modal que fica aberto após a nota falhar**
+
+Uma revisão posterior (depois que o modal passou a ficar aberto e trocar o
+botão principal para "retentar nota" em vez de fechar quando a nota falha
+duas vezes) achou duas brechas novas que essa mudança tinha aberto:
+
+1. **Cancelar era uma saída sem guarda.** Com o deal já criado e a nota
+   pendente, `Cancelar` só chamava `onClose()` — o deal ficava no CRM sem a
+   nota de auditoria e ninguém saberia. Decisão do dono do produto: cancelar
+   nesse estado **desfaz** o deal. `SaveToCrmModal` ganhou `cancelar()`, que
+   chama `useDeleteDeal()` (mesmo hook que `DealDetailModal` já usa para
+   excluir negócio) quando `dealIdCriado` existe, e só fecha o modal se a
+   remoção der certo — se falhar, mostra o erro e mantém o modal aberto para
+   nova tentativa. Antes de existir deal, `Cancelar` continua só fechando.
+   Um estado `cancelando` (separado de `salvando`) desabilita o botão
+   enquanto a remoção está em voo, para não disparar duas exclusões.
+2. **A nota da retentativa podia divergir da citação gravada no deal.**
+   `citacao`/`dataCitacao` continuavam editáveis depois do deal criado, mas
+   `customFields.radar.quote` já tinha sido gravado no deal com o valor de
+   quando ele foi criado. Editar o texto entre a retentativa automática e a
+   manual quebrava a rastreabilidade da citação literal. Fix: a textarea da
+   citação e o campo de data agora ficam `disabled` assim que
+   `aguardandoRetentativaDeNota` é verdadeiro, com texto de ajuda explicando
+   que estão travados.
+
+Testes acrescentados a `test/stories/radar-salvar-exige-citacao.test.tsx`
+(mantendo os sete originais intactos): cancelar depois de a nota falhar
+desfaz o deal; cancelar antes de existir deal não apaga nada; a citação fica
+travada (disabled) depois que o deal existe.
+
+Run: `npx vitest run test/stories/radar-salvar-exige-citacao.test.tsx`
+Expected: PASS, 10 testes.
+
 ---
 
 ## Task 12: Apagar um lead e o que veio junto
