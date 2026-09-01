@@ -46,12 +46,16 @@ export interface SearchFilters {
  */
 export function SearchForm({
     budget,
+    isBudgetLoading,
+    isBudgetError,
     isSearching,
     filters,
     onFiltersChange,
     onSubmit,
 }: {
     budget: BudgetSnapshot | undefined;
+    isBudgetLoading: boolean;
+    isBudgetError: boolean;
     isSearching: boolean;
     filters: SearchFilters;
     onFiltersChange: (f: SearchFilters) => void;
@@ -185,7 +189,13 @@ export function SearchForm({
                 </div>
             </fieldset>
 
-            <CostEstimate maxResults={maxResults} withContacts={withContacts} budget={budget} />
+            <CostEstimate
+                maxResults={maxResults}
+                withContacts={withContacts}
+                budget={budget}
+                isBudgetLoading={isBudgetLoading}
+                isBudgetError={isBudgetError}
+            />
 
             <Button type="submit" disabled={!podeBuscar} className="w-full">
                 {isSearching ? 'Buscando…' : 'Buscar'}

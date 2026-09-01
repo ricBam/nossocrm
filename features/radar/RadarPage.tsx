@@ -42,7 +42,7 @@ function aplicarFiltros(results: RadarResultDTO[], f: SearchFilters): RadarResul
 }
 
 export function RadarPage() {
-    const { data: budget } = useRadarBudget();
+    const { data: budget, isLoading: isBudgetLoading, isError: isBudgetError } = useRadarBudget();
     const search = useRadarSearch();
     const [filters, setFilters] = useState<SearchFilters>(FILTROS_INICIAIS);
 
@@ -60,6 +60,8 @@ export function RadarPage() {
                 </div>
                 <SearchForm
                     budget={budget}
+                    isBudgetLoading={isBudgetLoading}
+                    isBudgetError={isBudgetError}
                     isSearching={search.isPending}
                     filters={filters}
                     onFiltersChange={setFilters}
