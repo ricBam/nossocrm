@@ -597,7 +597,7 @@ export function monthlyBudgetUsd(): number {
 - [ ] **Step 4: Rodar os testes**
 
 Run: `npx vitest run lib/radar/pricing.test.ts`
-Expected: PASS, 13 testes.
+Expected: PASS, 14 testes.
 
 - [ ] **Step 5: Commit**
 
