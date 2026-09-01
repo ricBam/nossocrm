@@ -98,4 +98,77 @@ describe('Salvar no CRM exige citação literal', () => {
         expect(conteudo).toContain('2026-07-01');
         expect(conteudo).toContain('google_maps');
     });
+
+    it('nao cria um segundo deal quando a nota falha duas vezes', async () => {
+        criarDeal.mockClear();
+        createNote.mockReset().mockResolvedValue({ error: new Error('timeout') });
+        const onSaved = vi.fn();
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(SaveToCrmModal, { result: RESULT, onClose: () => {}, onSaved })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(2));
+        expect(criarDeal).toHaveBeenCalledTimes(1);
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(await screen.findByText(/nota de auditoria não foi gravada/i)).toBeInTheDocument();
+
+        // O botão principal virou "retentar nota" — clicar de novo NÃO pode
+        // criar outro deal, mesmo que a nota volte a falhar.
+        createNote.mockReset().mockResolvedValue({ error: new Error('timeout de novo') });
+        fireEvent.click(screen.getByRole('button', { name: /tentar gravar a nota novamente/i }));
+        await vi.waitFor(() => expect(createNote).toHaveBeenCalledTimes(1));
+        expect(criarDeal).toHaveBeenCalledTimes(1);
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('completa o salvamento quando a nota falha uma vez e vinga na retentativa automatica', async () => {
+        criarDeal.mockClear();
+        createNote
+            .mockReset()
+            .mockResolvedValueOnce({ error: new Error('falha transiente') })
+            .mockResolvedValueOnce({ error: null });
+        const onSaved = vi.fn();
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        render(
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(SaveToCrmModal, { result: RESULT, onClose: () => {}, onSaved })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes e ninguém responde.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith('deal_1'));
+        expect(createNote).toHaveBeenCalledTimes(2);
+        expect(criarDeal).toHaveBeenCalledTimes(1);
+    });
+
+    it('coloca cada linha de uma citação multilinha dentro do blockquote', async () => {
+        criarDeal.mockClear();
+        createNote.mockReset().mockResolvedValue({ error: null });
+
+        renderModal();
+        fireEvent.change(screen.getByLabelText(/citação literal/i), {
+            target: { value: 'Liguei três vezes.\nNinguém atendeu.\nDesisti.' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /salvar no crm/i }));
+
+        await vi.waitFor(() => expect(createNote).toHaveBeenCalled());
+        const [, conteudo] = createNote.mock.calls[0];
+        expect(conteudo).toContain('> Liguei três vezes.');
+        expect(conteudo).toContain('> Ninguém atendeu.');
+        expect(conteudo).toContain('> Desisti.');
+    });
 });

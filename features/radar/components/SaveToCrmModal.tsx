@@ -11,23 +11,51 @@ import { useAuth } from '@/context/AuthContext';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
 
 /**
+ * Colapsa quebras de linha e espaços repetidos em um campo vindo do Google
+ * Maps, para que não quebre a estrutura de uma lista markdown.
+ */
+function colapsarEspacos(valor: string | null | undefined, fallback = '—'): string {
+    if (!valor) return fallback;
+    const limpo = valor.replace(/\s+/g, ' ').trim();
+    return limpo.length > 0 ? limpo : fallback;
+}
+
+/**
+ * Extrai uma mensagem legível de um erro do Supabase (PostgrestError) ou de
+ * um Error nativo, sem depender de um tipo específico.
+ */
+function mensagemDeErro(erro: unknown): string {
+    if (erro && typeof erro === 'object' && 'message' in erro) {
+        return String((erro as { message?: unknown }).message);
+    }
+    return 'Erro desconhecido.';
+}
+
+/**
  * Monta a nota que vai para `deal_notes`. Guarda a citação, a data dela e a
  * procedência de cada campo — exigência da constituição.
  */
 function montarNota(result: RadarResultDTO, citacao: string, dataCitacao: string): string {
     const p = result.place;
+    // A citação pode ter várias linhas (avaliação real colada do Google) —
+    // cada linha precisa do seu próprio `> ` para continuar dentro do blockquote.
+    const citacaoEmBlockquote = citacao
+        .trim()
+        .split('\n')
+        .map(linha => `> ${linha}`)
+        .join('\n');
     return [
         '## Sinal do Radar',
         '',
-        `> ${citacao.trim()}`,
+        citacaoEmBlockquote,
         '',
         `**Data da avaliação:** ${dataCitacao || 'não informada'}`,
         `**Origem:** google_maps · coletado em ${new Date(p.collectedAt).toLocaleString('pt-BR')}`,
         '',
         '### Dados da busca',
         `- Nota: ${p.totalScore ?? '—'} · Avaliações: ${p.reviewsCount ?? '—'}`,
-        `- Categoria: ${p.categoryName ?? '—'}`,
-        `- Endereço: ${p.address ?? '—'}`,
+        `- Categoria: ${colapsarEspacos(p.categoryName)}`,
+        `- Endereço: ${colapsarEspacos(p.address)}`,
         `- Telefone: ${p.phone ?? '—'}`,
         `- Site: ${p.website ?? 'não tem'}`,
         `- Redes: ${p.socials.length > 0 ? p.socials.join(', ') : 'não tem'}`,
@@ -68,12 +96,57 @@ export function SaveToCrmModal({
     const [dataCitacao, setDataCitacao] = useState(initialQuoteDate);
     const [erro, setErro] = useState<string | null>(null);
     const [salvando, setSalvando] = useState(false);
+    // Preenchido assim que o deal é criado. A partir daí, o botão nunca mais
+    // pode chamar createDealWithContact de novo — só retentar a nota.
+    const [dealIdCriado, setDealIdCriado] = useState<string | null>(null);
 
     const p = result.place;
     // Primeiro estágio por ordem. Nunca um nome literal.
     const primeiroEstagio = board?.stages?.[0];
     const temCitacao = citacao.trim().length > 0;
     const podeSalvar = temCitacao && !!board && !!primeiroEstagio && !salvando;
+    // O deal já existe, só falta a nota de auditoria pegar.
+    const aguardandoRetentativaDeNota = dealIdCriado !== null;
+
+    /**
+     * Cria a nota de auditoria, com uma retentativa automática (falha
+     * transiente não deve incomodar o usuário). Retorna o erro final, se
+     * as duas tentativas falharem.
+     */
+    async function criarNotaComRetryAutomatico(dealId: string): Promise<unknown> {
+        const conteudo = montarNota(result, citacao, dataCitacao);
+        const primeira = await dealNotesService.createNote(dealId, conteudo);
+        if (!primeira.error) return null;
+        const segunda = await dealNotesService.createNote(dealId, conteudo);
+        return segunda.error ?? null;
+    }
+
+    /**
+     * Retentativa manual, disparada pelo usuário quando as duas tentativas
+     * automáticas já falharam. NUNCA cria um novo deal — só regrava a nota
+     * no deal que já existe, para não duplicar o negócio.
+     */
+    async function retentarNota() {
+        if (!dealIdCriado || salvando) return;
+        setSalvando(true);
+        setErro(null);
+        try {
+            const conteudo = montarNota(result, citacao, dataCitacao);
+            const { error } = await dealNotesService.createNote(dealIdCriado, conteudo);
+            if (error) {
+                setErro(
+                    `O negócio já foi salvo, mas a nota de auditoria continua sem gravar: ${mensagemDeErro(error)}. Tente novamente.`
+                );
+                return;
+            }
+            onSaved(dealIdCriado);
+            onClose();
+        } catch (e) {
+            setErro(e instanceof Error ? e.message : 'Falha ao gravar a nota de auditoria.');
+        } finally {
+            setSalvando(false);
+        }
+    }
 
     async function salvar() {
         if (!podeSalvar || !board || !primeiroEstagio) return;
@@ -133,7 +206,18 @@ export function SaveToCrmModal({
                 },
             });
 
-            await dealNotesService.createNote(criado.id, montarNota(result, citacao, dataCitacao));
+            setDealIdCriado(criado.id);
+
+            const erroNota = await criarNotaComRetryAutomatico(criado.id);
+            if (erroNota) {
+                // O negócio já existe — manter o modal aberto e trocar a ação
+                // principal para retentar só a nota, nunca criar outro deal.
+                setErro(
+                    `O negócio foi salvo, mas a nota de auditoria não foi gravada: ${mensagemDeErro(erroNota)}. Tente novamente.`
+                );
+                return;
+            }
+
             onSaved(criado.id);
             onClose();
         } catch (e) {
@@ -185,8 +269,15 @@ export function SaveToCrmModal({
                     <Button variant="outline" onClick={onClose} disabled={salvando}>
                         Cancelar
                     </Button>
-                    <Button onClick={salvar} disabled={!podeSalvar}>
-                        {salvando ? 'Salvando…' : 'Salvar no CRM'}
+                    <Button
+                        onClick={aguardandoRetentativaDeNota ? retentarNota : salvar}
+                        disabled={aguardandoRetentativaDeNota ? salvando : !podeSalvar}
+                    >
+                        {salvando
+                            ? 'Salvando…'
+                            : aguardandoRetentativaDeNota
+                                ? 'Tentar gravar a nota novamente'
+                                : 'Salvar no CRM'}
                     </Button>
                 </div>
             </div>
