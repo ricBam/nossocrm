@@ -120,7 +120,8 @@ CREATE TABLE IF NOT EXISTS public.radar_searches (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Serve o cache por (nicho, cidade, uf) E a soma de custo do ciclo.
+-- Lookup do cache por (nicho, cidade, uf). A soma de custo do ciclo tem
+-- índice próprio, idx_radar_searches_cycle — ver migration 20260831220000.
 CREATE INDEX IF NOT EXISTS idx_radar_searches_cache
   ON public.radar_searches (organization_id, nicho, cidade, uf, created_at DESC);
 
