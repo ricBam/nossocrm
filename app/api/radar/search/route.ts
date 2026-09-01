@@ -42,6 +42,18 @@ const BodySchema = z.object({
   refresh: z.boolean().optional().default(false),
 });
 
+/** Formato das colunas selecionadas na leitura de `radar_results` (cache-hit). */
+interface CachedResultRow {
+  id: string;
+  place_id: string;
+  payload: RadarPlace;
+  score: number;
+  score_breakdown: ScoreBreakdownItem[];
+  disqualified: boolean;
+  disqualify_reasons: string[];
+  saved_deal_id: string | null;
+}
+
 export interface RadarResultDTO {
   id: string;
   place: RadarPlace;
@@ -147,17 +159,19 @@ export async function POST(req: Request) {
         const { data: rows } = await supabase
           .from('radar_results')
           .select('id, place_id, payload, score, score_breakdown, disqualified, disqualify_reasons, saved_deal_id')
-          .eq('search_id', hit.id);
+          .eq('search_id', hit.id)
+          .eq('organization_id', organizationId);
 
-        const results: RadarResultDTO[] = ((rows ?? []) as unknown as Record<string, never>[]).map(r => ({
-          id: r.id as unknown as string,
-          place: r.payload as unknown as RadarPlace,
+        const cachedRows = (rows ?? []) as unknown as CachedResultRow[];
+        const results: RadarResultDTO[] = cachedRows.map(r => ({
+          id: r.id,
+          place: r.payload,
           score: Number(r.score ?? 0),
-          breakdown: (r.score_breakdown ?? []) as unknown as ScoreBreakdownItem[],
+          breakdown: r.score_breakdown ?? [],
           disqualified: Boolean(r.disqualified),
-          disqualifyReasons: (r.disqualify_reasons ?? []) as unknown as string[],
+          disqualifyReasons: r.disqualify_reasons ?? [],
           duplicate: { isDuplicate: false, reasons: [] },
-          savedDealId: (r.saved_deal_id ?? null) as unknown as string | null,
+          savedDealId: r.saved_deal_id ?? null,
         }));
 
         return NextResponse.json<SearchResponse>({
@@ -173,6 +187,11 @@ export async function POST(req: Request) {
     }
 
     // --- Só aqui gastamos dinheiro -------------------------------------------
+    // O teto é verificado aqui, DEPOIS do bloco de cache, de propósito: o
+    // teto limita GASTO, não LEITURA. Um cache hit nunca chama o Apify e não
+    // custa nada, então uma organização acima do teto ainda pode ler
+    // resultados já pagos em ciclos anteriores. Não mover esta checagem para
+    // antes do cache.
     if (!budget.allowed) {
       return NextResponse.json(
         { error: `Teto mensal de US$ ${budget.budgetUsd.toFixed(2)} atingido. Já gastos: US$ ${budget.spentUsd.toFixed(4)}.`, budget },
@@ -228,8 +247,14 @@ export async function POST(req: Request) {
       return { place, s, duplicate };
     });
 
+    // Se a gravação falhar depois de um run pago, o custo já foi debitado e
+    // não há como desfazer: a busca fica marcada `partial` para nunca ser
+    // servida do cache (ver comentário no schema de SearchResponse.partial),
+    // mas a resposta a ESTA requisição ainda devolve os resultados em
+    // memória — um run pago não pode simplesmente sumir da tela do usuário.
+    let persistFailed = false;
     if (scored.length > 0) {
-      await supabase.from('radar_results').upsert(
+      const { error: upsertError } = await supabase.from('radar_results').upsert(
         scored.map(({ place, s }) => ({
           organization_id: organizationId,
           search_id: searchId,
@@ -243,12 +268,26 @@ export async function POST(req: Request) {
         })),
         { onConflict: 'organization_id,place_id' }
       );
+
+      if (upsertError) {
+        persistFailed = true;
+        console.error(
+          `[radar/search] falha ao gravar radar_results para search_id=${searchId}:`,
+          upsertError.message
+        );
+        await supabase
+          .from('radar_searches')
+          .update({ partial: true })
+          .eq('id', searchId)
+          .eq('organization_id', organizationId);
+      }
     }
 
     const { data: savedRows } = await supabase
       .from('radar_results')
       .select('id, place_id, saved_deal_id')
-      .eq('search_id', searchId);
+      .eq('search_id', searchId)
+      .eq('organization_id', organizationId);
     const byPlace = new Map(
       ((savedRows ?? []) as { id: string; place_id: string; saved_deal_id: string | null }[])
         .map(r => [r.place_id, r])
@@ -259,7 +298,7 @@ export async function POST(req: Request) {
       origin: 'live',
       costUsd: run.costUsd,
       cachedAt: null,
-      partial: !run.finished,
+      partial: !run.finished || persistFailed,
       budget: budgetVerdict({ spentUsd: spentUsd + run.costUsd, estimateUsd: 0, budgetUsd: monthlyBudgetUsd() }),
       results: scored.map(({ place, s, duplicate }) => ({
         id: byPlace.get(place.placeId)?.id ?? place.placeId,
