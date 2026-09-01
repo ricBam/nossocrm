@@ -1417,7 +1417,7 @@ git commit -m "feat(radar): dedupe por place_id e telefone E.164"
 - Test: `lib/radar/apify.test.ts`
 
 **Interfaces:**
-- Consumes: `RadarPlace`, `RadarReview` de `@/lib/radar/types`; `APIFY_REVIEWS_FILTER` de `@/lib/radar/anchors`.
+- Consumes: `RadarPlace`, `RadarReview` de `@/lib/radar/types`. **Não** importa nada de `anchors.ts` — a filtragem por termo é local, feita depois, em `findAnchorMatches`.
 - Produces:
   - `class ApifyConfigError extends Error`
   - `runPlacesSearch(input: PlacesSearchInput): Promise<{ runId: string; costUsd: number; places: RadarPlace[] }>`
@@ -1630,7 +1630,6 @@ Expected: FAIL — `Failed to resolve import "@/lib/radar/apify"`.
  */
 
 import type { RadarPlace, RadarReview } from './types';
-import { APIFY_REVIEWS_FILTER } from './anchors';
 
 const APIFY_BASE = 'https://api.apify.com/v2';
 const PLACES_ACTOR = 'compass~crawler-google-places';
@@ -1812,9 +1811,18 @@ export interface ReviewsInput {
 /**
  * Avaliações sob demanda de UMA empresa.
  *
- * `reviewsFilterString` manda os termos do âncora para o actor filtrar na
- * origem — cada avaliação devolvida é um `review-scraped` cobrado, então
- * filtrar lá economiza dinheiro de verdade.
+ * Corte de custo por DATA, não por termo. `reviewsStartDate` é documentado sem
+ * ambiguidade pelo actor (data absoluta `2024-05-03` ou relativa `8 days`,
+ * `3 months`), e 180 dias é exatamente a janela que o sinal de +3 do score usa
+ * — então filtrar por ela corta `review-scraped` pelo mesmo eixo que a regra de
+ * negócio já aplica.
+ *
+ * Deliberadamente NÃO mandamos `reviewsFilterString`: a doc do actor diz
+ * "keywords" no plural mas tipa o campo como `string` única, sem especificar se
+ * espaço separa termos ou se a string inteira é uma frase literal. Se for frase
+ * literal, o filtro casaria zero avaliações e ainda assim pagaríamos o
+ * `place-details-scraped`. A filtragem por termo acontece localmente em
+ * `findAnchorMatches`, que é nossa e não custa nada.
  */
 export async function runReviewsScrape(
   input: ReviewsInput
@@ -1827,7 +1835,7 @@ export async function runReviewsScrape(
       startUrls: [{ url: `https://www.google.com/maps/place/?q=place_id:${input.placeId}` }],
       maxReviews: input.maxReviews,
       reviewsSort: 'newest',
-      reviewsFilterString: APIFY_REVIEWS_FILTER,
+      reviewsStartDate: '180 days',
       language: 'pt-BR',
       countryCode: 'br',
     },
