@@ -211,8 +211,8 @@ export function useFormEnhanced<TFormData extends FieldValues>({
   // Check if specific field is valid
   const isFieldValid = useCallback(
     (name: Path<TFormData>): boolean => {
-      const fieldTouched = touchedFields[name as keyof typeof touchedFields];
-      const fieldDirty = dirtyFields[name as keyof typeof dirtyFields];
+      const fieldTouched = (touchedFields as Record<string, boolean | undefined>)[name];
+      const fieldDirty = (dirtyFields as Record<string, boolean | undefined>)[name];
       const fieldError = errors[name as keyof typeof errors];
 
       return !!(fieldTouched || fieldDirty) && !fieldError;
