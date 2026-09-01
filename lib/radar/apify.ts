@@ -110,18 +110,31 @@ async function apifyFetch(path: string, init: RequestInit, token: string): Promi
 }
 
 interface RunEnvelope {
-  data?: { id?: string; defaultDatasetId?: string; usageTotalUsd?: number };
+  data?: {
+    id?: string;
+    defaultDatasetId?: string;
+    usageTotalUsd?: number;
+    /** SUCCEEDED, FAILED, RUNNING, TIMED-OUT, ABORTED… */
+    status?: string;
+  };
 }
 
 /**
- * Roda o actor de forma síncrona (`run-sync`) e devolve o run com o custo real.
+ * Roda o actor de forma síncrona e devolve o run com o custo real.
+ *
  * `usageTotalUsd` é o valor cobrado de verdade — nunca usar a estimativa aqui.
+ *
+ * ⚠️ `waitForFinish=300` é o teto de quanto tempo a API segura a conexão, e NÃO
+ * garantia de que o run terminou. Estourando esse tempo, a resposta volta 201
+ * com `status: 'RUNNING'` e um dataset ainda incompleto. Por isso devolvemos
+ * `finished`: quem chama decide o que fazer com um resultado parcial. Aqui não
+ * fazemos polling — o parcial é mostrado, e a Task 7 cuida de não cacheá-lo.
  */
 async function runActorSync(
   actor: string,
   input: Record<string, unknown>,
   token: string
-): Promise<{ runId: string; datasetId: string; costUsd: number }> {
+): Promise<{ runId: string; datasetId: string; costUsd: number; finished: boolean }> {
   const res = await apifyFetch(
     `/acts/${actor}/runs?waitForFinish=300`,
     { method: 'POST', body: JSON.stringify(input) },
@@ -131,9 +144,22 @@ async function runActorSync(
   const runId = json.data?.id;
   const datasetId = json.data?.defaultDatasetId;
   if (!runId || !datasetId) throw new Error('Apify não devolveu runId ou datasetId.');
-  return { runId, datasetId, costUsd: json.data?.usageTotalUsd ?? 0 };
+  return {
+    runId,
+    datasetId,
+    costUsd: json.data?.usageTotalUsd ?? 0,
+    finished: json.data?.status === 'SUCCEEDED',
+  };
 }
 
+/**
+ * Lê os itens do dataset.
+ *
+ * Sem `limit`/`offset` a API devolve o dataset inteiro numa resposta só, que é
+ * o comportamento padrão documentado. Nos volumes deste produto (no máximo 100
+ * lugares por busca) isso cabe folgado; se algum dia o teto subir muito, esta
+ * premissa precisa de paginação explícita.
+ */
 async function readDataset(datasetId: string, token: string): Promise<Record<string, unknown>[]> {
   const res = await apifyFetch(`/datasets/${datasetId}/items?clean=true&format=json`, { method: 'GET' }, token);
   const items = (await res.json()) as unknown;
@@ -156,11 +182,11 @@ export interface PlacesSearchInput {
  */
 export async function runPlacesSearch(
   input: PlacesSearchInput
-): Promise<{ runId: string; costUsd: number; places: RadarPlace[] }> {
+): Promise<{ runId: string; costUsd: number; finished: boolean; places: RadarPlace[] }> {
   const token = requireToken();
   const collectedAt = new Date().toISOString();
 
-  const { runId, datasetId, costUsd } = await runActorSync(
+  const { runId, datasetId, costUsd, finished } = await runActorSync(
     PLACES_ACTOR,
     {
       searchStringsArray: [input.nicho],
@@ -180,7 +206,7 @@ export async function runPlacesSearch(
     .map(item => mapPlace(item, collectedAt))
     .filter((p): p is RadarPlace => p !== null);
 
-  return { runId, costUsd, places };
+  return { runId, costUsd, finished, places };
 }
 
 export interface ReviewsInput {
@@ -206,10 +232,10 @@ export interface ReviewsInput {
  */
 export async function runReviewsScrape(
   input: ReviewsInput
-): Promise<{ runId: string; costUsd: number; reviews: RadarReview[] }> {
+): Promise<{ runId: string; costUsd: number; finished: boolean; reviews: RadarReview[] }> {
   const token = requireToken();
 
-  const { runId, datasetId, costUsd } = await runActorSync(
+  const { runId, datasetId, costUsd, finished } = await runActorSync(
     REVIEWS_ACTOR,
     {
       startUrls: [{ url: `https://www.google.com/maps/place/?q=place_id:${input.placeId}` }],
@@ -225,5 +251,5 @@ export async function runReviewsScrape(
   const raw = await readDataset(datasetId, token);
   const reviews = raw.map(mapReview).filter((r): r is RadarReview => r !== null);
 
-  return { runId, costUsd, reviews };
+  return { runId, costUsd, finished, reviews };
 }

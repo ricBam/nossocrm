@@ -105,7 +105,7 @@ describe('runPlacesSearch', () => {
   it('manda pt-BR, br e o limite de resultados no input do actor', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.0125 },
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.0125, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response(JSON.stringify([
         { placeId: 'ChIJ_1', title: 'Clínica A', totalScore: 4.1, reviewsCount: 60 },
@@ -135,7 +135,7 @@ describe('runPlacesSearch', () => {
   it('nunca põe o token na URL, só no header Authorization', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0 },
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
@@ -160,7 +160,7 @@ describe('runPlacesSearch', () => {
   it('descarta registros inválidos do dataset em vez de quebrar a busca inteira', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0 },
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response(JSON.stringify([
         { placeId: 'ChIJ_1', title: 'Boa' },
@@ -172,5 +172,36 @@ describe('runPlacesSearch', () => {
     const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 3, withContacts: false });
     expect(out.places).toHaveLength(1);
     expect(out.places[0].placeId).toBe('ChIJ_1');
+  });
+
+  it('marca finished=true quando o run chegou a SUCCEEDED', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.01, status: 'SUCCEEDED' },
+      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1, withContacts: false });
+    expect(out.finished).toBe(true);
+  });
+
+  it('marca finished=false quando o run ainda está RUNNING, sem lançar erro', async () => {
+    // waitForFinish é o teto da conexão, não garantia de término: o Apify devolve
+    // 201 com o run em andamento e um dataset possivelmente incompleto.
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.02, status: 'RUNNING' },
+      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { placeId: 'ChIJ_1', title: 'Parcial' },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 10, withContacts: false });
+    expect(out.finished).toBe(false);
+    // O que veio até aqui é devolvido: o dinheiro já saiu, jogar fora seria pior.
+    expect(out.places).toHaveLength(1);
+    expect(out.costUsd).toBeCloseTo(0.02, 5);
   });
 });

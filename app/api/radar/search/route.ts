@@ -24,8 +24,12 @@ import type { RadarPlace, ScoreBreakdownItem } from '@/lib/radar/types';
 
 export const maxDuration = 300;
 
-/** Teto duro de resultados por busca. Blindagem contra estouro de custo. */
-const MAX_RESULTS_HARD_CAP = 60;
+/**
+ * Teto duro de resultados por busca. Blindagem contra estouro de custo.
+ * A tela oferece 10..100 de 10 em 10; o schema aceita a partir de 1 para permitir
+ * teste barato em desenvolvimento sem passar pela tela.
+ */
+const MAX_RESULTS_HARD_CAP = 100;
 const CACHE_TTL_DAYS = 30;
 
 const BodySchema = z.object({
@@ -54,6 +58,12 @@ export interface SearchResponse {
   origin: 'live' | 'cache';
   costUsd: number;
   cachedAt: string | null;
+  /**
+   * true quando o run do Apify não chegou a SUCCEEDED e a lista pode estar
+   * incompleta. A busca é gravada assim mesmo (o custo saiu), mas marcada
+   * como parcial para nunca ser servida do cache.
+   */
+  partial: boolean;
   budget: BudgetVerdict;
   results: RadarResultDTO[];
 }
@@ -126,6 +136,8 @@ export async function POST(req: Request) {
         .eq('nicho', nicho)
         .eq('cidade', cidade)
         .eq('uf', uf)
+        // Busca parcial nunca serve de cache: a lista pode estar incompleta.
+        .eq('partial', false)
         .gte('created_at', cutoff)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -153,6 +165,7 @@ export async function POST(req: Request) {
           origin: 'cache',
           costUsd: 0,
           cachedAt: hit.created_at,
+          partial: false,
           budget,
           results,
         });
@@ -197,6 +210,7 @@ export async function POST(req: Request) {
         apify_run_id: run.runId,
         cost_usd: run.costUsd,
         origin: 'live',
+        partial: !run.finished,
         places_count: run.places.length,
         created_by: auth.user.id,
       })
@@ -245,6 +259,7 @@ export async function POST(req: Request) {
       origin: 'live',
       costUsd: run.costUsd,
       cachedAt: null,
+      partial: !run.finished,
       budget: budgetVerdict({ spentUsd: spentUsd + run.costUsd, estimateUsd: 0, budgetUsd: monthlyBudgetUsd() }),
       results: scored.map(({ place, s, duplicate }) => ({
         id: byPlace.get(place.placeId)?.id ?? place.placeId,
