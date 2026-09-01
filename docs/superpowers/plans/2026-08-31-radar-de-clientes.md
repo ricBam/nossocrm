@@ -980,7 +980,7 @@ export function computeScore(
 - [ ] **Step 4: Rodar os testes**
 
 Run: `npx vitest run lib/radar/score.test.ts`
-Expected: PASS, 18 testes.
+Expected: PASS, 20 testes.
 
 - [ ] **Step 5: Commit**
 
@@ -1399,7 +1399,7 @@ export function checkDuplicate(
 - [ ] **Step 4: Rodar os testes**
 
 Run: `npx vitest run lib/radar/dedupe.test.ts`
-Expected: PASS, 10 testes.
+Expected: PASS, 9 testes.
 
 - [ ] **Step 5: Commit**
 
