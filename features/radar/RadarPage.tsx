@@ -6,6 +6,8 @@ import { useRadarBudget, useRadarSearch } from '@/lib/query/hooks/useRadarQuery'
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SearchForm, type SearchFilters } from './components/SearchForm';
 import { ResultCard } from './components/ResultCard';
+import { ReviewsPanel } from './components/ReviewsPanel';
+import { SaveToCrmModal } from './components/SaveToCrmModal';
 import type { RadarResultDTO } from '@/app/api/radar/search/route';
 
 const FILTROS_INICIAIS: SearchFilters = {
@@ -45,6 +47,9 @@ export function RadarPage() {
     const { data: budget, isLoading: isBudgetLoading, isError: isBudgetError } = useRadarBudget();
     const search = useRadarSearch();
     const [filters, setFilters] = useState<SearchFilters>(FILTROS_INICIAIS);
+    const [lendo, setLendo] = useState<RadarResultDTO | null>(null);
+    const [salvando, setSalvando] = useState<RadarResultDTO | null>(null);
+    const [citacaoSugerida, setCitacaoSugerida] = useState<{ quote: string; date: string | null } | null>(null);
 
     const results = search.data?.results ?? [];
     const visiveis = useMemo(() => aplicarFiltros(results, filters), [results, filters]);
@@ -99,12 +104,35 @@ export function RadarPage() {
                         <ResultCard
                             key={r.id}
                             result={r}
-                            onOpenReviews={() => { /* Task 11 */ }}
-                            onSave={() => { /* Task 11 */ }}
+                            onOpenReviews={setLendo}
+                            onSave={setSalvando}
                         />
                     ))}
                 </div>
             </section>
+
+            {lendo && (
+                <ReviewsPanel
+                    result={lendo}
+                    onClose={() => setLendo(null)}
+                    onUseQuote={(quote, date) => {
+                        setCitacaoSugerida({ quote, date });
+                        setSalvando(lendo);
+                        setLendo(null);
+                    }}
+                />
+            )}
+
+            {salvando && (
+                <SaveToCrmModal
+                    key={citacaoSugerida?.quote ?? salvando.id}
+                    result={salvando}
+                    initialQuote={citacaoSugerida?.quote ?? ''}
+                    initialQuoteDate={citacaoSugerida?.date ?? ''}
+                    onClose={() => { setSalvando(null); setCitacaoSugerida(null); }}
+                    onSaved={() => { setSalvando(null); setCitacaoSugerida(null); }}
+                />
+            )}
         </div>
     );
 }
