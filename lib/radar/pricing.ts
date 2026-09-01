@@ -11,28 +11,23 @@
 export interface ApifyPricing {
   /** Cobrado uma vez por execução do actor. */
   actorStart: number;
-  /** Cada lugar retornado pela busca. */
+  /** Cada lugar retornado pela busca (kaix/google-maps-places-scraper). */
   placeScraped: number;
-  /** Abrir a página de detalhe de um lugar (necessário para avaliações). */
-  placeDetailsScraped: number;
-  /** Add-on de enriquecimento de contato a partir do site. */
-  contactDetailsScraped: number;
-  /** Cada avaliação extraída. */
-  reviewScraped: number;
 }
 
 /**
- * Preços por evento no plano FREE do Apify.
+ * Preços por evento no plano FREE do Apify, para o actor kaix/google-maps-places-scraper.
  *
  * ⚠️ Conferir contra o console antes da primeira rodada real: a vitrine pública
- * do actor anuncia valores de planos pagos, que são diferentes destes.
+ * do actor anuncia valores de planos pagos, que são diferentes destes. Além do
+ * preço por evento listado aqui, o Apify cobra uma taxa de uso de plataforma
+ * variável por cima (compute/retries) — não modelada nesta estimativa. O teto
+ * de gasto continua seguro porque `budgetVerdict` decide contra o GASTO REAL
+ * acumulado no ciclo, não contra esta estimativa (ver `spentThisCycle`).
  */
 export const APIFY_FREE_PRICING: ApifyPricing = {
   actorStart: 0.00005,
-  placeScraped: 0.004,
-  placeDetailsScraped: 0.002,
-  contactDetailsScraped: 0.002,
-  reviewScraped: 0.0005,
+  placeScraped: 0.00008,
 };
 
 /** Teto padrão em USD quando `RADAR_MONTHLY_BUDGET_USD` não está definido. */
@@ -46,37 +41,14 @@ function atLeastZero(n: number): number {
  * Custo estimado de uma busca de descoberta.
  *
  * @param input.places - Quantos lugares a busca deve retornar.
- * @param input.withContacts - Se o add-on `scrapeContacts` está ligado.
  * @returns Custo em USD.
  */
 export function estimateSearchCost(
-  input: { places: number; withContacts: boolean },
+  input: { places: number },
   pricing: ApifyPricing = APIFY_FREE_PRICING
 ): number {
   const places = atLeastZero(input.places);
-  const contacts = input.withContacts ? places * pricing.contactDetailsScraped : 0;
-  return pricing.actorStart + places * pricing.placeScraped + contacts;
-}
-
-/**
- * Custo estimado de puxar avaliações sob demanda.
- *
- * O `placeDetailsScraped` é cobrado por lugar mesmo com zero avaliações,
- * porque o actor precisa abrir a página de detalhe antes.
- *
- * @returns Custo em USD.
- */
-export function estimateReviewsCost(
-  input: { places: number; reviewsPerPlace: number },
-  pricing: ApifyPricing = APIFY_FREE_PRICING
-): number {
-  const places = atLeastZero(input.places);
-  const perPlace = atLeastZero(input.reviewsPerPlace);
-  return (
-    pricing.actorStart +
-    places * pricing.placeDetailsScraped +
-    places * perPlace * pricing.reviewScraped
-  );
+  return pricing.actorStart + places * pricing.placeScraped;
 }
 
 /**

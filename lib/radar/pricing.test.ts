@@ -2,52 +2,31 @@ import { describe, expect, it } from 'vitest';
 import {
   APIFY_FREE_PRICING,
   estimateSearchCost,
-  estimateReviewsCost,
   currentCycleStart,
   budgetVerdict,
 } from '@/lib/radar/pricing';
 
 describe('APIFY_FREE_PRICING', () => {
-  it('usa os preços por evento do plano FREE', () => {
+  it('usa os preços por evento do plano FREE do actor kaix/google-maps-places-scraper', () => {
     expect(APIFY_FREE_PRICING).toEqual({
       actorStart: 0.00005,
-      placeScraped: 0.004,
-      placeDetailsScraped: 0.002,
-      contactDetailsScraped: 0.002,
-      reviewScraped: 0.0005,
+      placeScraped: 0.00008,
     });
   });
 });
 
 describe('estimateSearchCost', () => {
   it('cobra início de execução mais um place-scraped por lugar', () => {
-    // 0.00005 + 20 * 0.004 = 0.08005
-    expect(estimateSearchCost({ places: 20, withContacts: false })).toBeCloseTo(0.08005, 5);
-  });
-
-  it('soma contact-details quando o enriquecimento está ligado', () => {
-    // 0.00005 + 20 * 0.004 + 20 * 0.002 = 0.12005
-    expect(estimateSearchCost({ places: 20, withContacts: true })).toBeCloseTo(0.12005, 5);
+    // 0.00005 + 20 * 0.00008 = 0.00165
+    expect(estimateSearchCost({ places: 20 })).toBeCloseTo(0.00165, 5);
   });
 
   it('não cobra nada além do start quando não há lugares', () => {
-    expect(estimateSearchCost({ places: 0, withContacts: true })).toBeCloseTo(0.00005, 5);
+    expect(estimateSearchCost({ places: 0 })).toBeCloseTo(0.00005, 5);
   });
 
   it('trata número negativo como zero em vez de gerar crédito', () => {
-    expect(estimateSearchCost({ places: -5, withContacts: false })).toBeCloseTo(0.00005, 5);
-  });
-});
-
-describe('estimateReviewsCost', () => {
-  it('cobra place-details por lugar mais review-scraped por avaliação', () => {
-    // 0.00005 + 60 * 0.002 + 60 * 10 * 0.0005 = 0.42005
-    expect(estimateReviewsCost({ places: 60, reviewsPerPlace: 10 })).toBeCloseTo(0.42005, 5);
-  });
-
-  it('ainda cobra o place-details quando pede zero avaliações', () => {
-    // O actor precisa abrir a página de detalhe de qualquer jeito.
-    expect(estimateReviewsCost({ places: 1, reviewsPerPlace: 0 })).toBeCloseTo(0.00205, 5);
+    expect(estimateSearchCost({ places: -5 })).toBeCloseTo(0.00005, 5);
   });
 });
 

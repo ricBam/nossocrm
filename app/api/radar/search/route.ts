@@ -39,7 +39,6 @@ const BodySchema = z.object({
   cidade: z.string().trim().min(1, 'Cidade é obrigatória'),
   uf: z.string().trim().length(2, 'UF deve ter 2 letras'),
   maxResults: z.number().int().min(1).max(MAX_RESULTS_HARD_CAP),
-  withContacts: z.boolean().optional().default(false),
   /** Força ignorar o cache. Só o usuário pede isso, explicitamente. */
   refresh: z.boolean().optional().default(false),
 });
@@ -154,7 +153,7 @@ export async function POST(req: Request) {
 
     // --- Teto de gasto: decidido ANTES de qualquer chamada paga ---------------
     const spentUsd = await spentThisCycle(supabase, organizationId);
-    const estimateUsd = estimateSearchCost({ places: body.maxResults, withContacts: body.withContacts });
+    const estimateUsd = estimateSearchCost({ places: body.maxResults });
     const budget = budgetVerdict({ spentUsd, estimateUsd, budgetUsd: monthlyBudgetUsd() });
 
     // --- Cache de 30 dias: não gasta nada -------------------------------------
@@ -238,7 +237,6 @@ export async function POST(req: Request) {
       cidade,
       uf,
       maxResults: body.maxResults,
-      withContacts: body.withContacts,
     });
 
     // --- Índice de dedupe + estado atual das linhas desta organização ---------
@@ -296,7 +294,7 @@ export async function POST(req: Request) {
     const searchId = (inserted as { id: string }).id;
 
     const scored = run.places.map(place => {
-      const s = computeScore(place); // sem avaliações: o +3 fica pendente
+      const s = computeScore(place);
       const duplicate = checkDuplicate({ placeId: place.placeId, phone: place.phone }, index);
       return { place, s, duplicate };
     });

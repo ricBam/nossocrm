@@ -17,18 +17,16 @@ const usd = (n: number) => `US$ ${n.toFixed(4)}`;
  */
 export function CostEstimate({
     maxResults,
-    withContacts,
     budget,
     isBudgetLoading,
     isBudgetError,
 }: {
     maxResults: number;
-    withContacts: boolean;
     budget: BudgetSnapshot | undefined;
     isBudgetLoading: boolean;
     isBudgetError: boolean;
 }) {
-    const estimate = estimateSearchCost({ places: maxResults, withContacts });
+    const estimate = estimateSearchCost({ places: maxResults });
 
     if (isBudgetLoading) {
         return (
@@ -87,7 +85,6 @@ export function CostEstimate({
 /** Exportada para o formulário decidir se habilita o botão. */
 export function isSearchAllowed(
     maxResults: number,
-    withContacts: boolean,
     budget: BudgetSnapshot | undefined
 ): boolean {
     // Orçamento indisponível (ainda carregando OU falhou — useQuery devolve
@@ -99,6 +96,6 @@ export function isSearchAllowed(
     // falha transitória numa rota que não protege nada que o servidor já
     // não proteja.
     if (!budget) return true;
-    const estimate = estimateSearchCost({ places: maxResults, withContacts });
+    const estimate = estimateSearchCost({ places: maxResults });
     return budgetVerdict({ spentUsd: budget.spentUsd, estimateUsd: estimate, budgetUsd: budget.budgetUsd }).allowed;
 }

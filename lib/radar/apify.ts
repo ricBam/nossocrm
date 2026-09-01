@@ -9,11 +9,10 @@
  * @module lib/radar/apify
  */
 
-import type { RadarPlace, RadarReview } from './types';
+import type { RadarPlace } from './types';
 
 const APIFY_BASE = 'https://api.apify.com/v2';
-const PLACES_ACTOR = 'compass~crawler-google-places';
-const REVIEWS_ACTOR = 'compass~google-maps-reviews-scraper';
+const PLACES_ACTOR = 'kaix~google-maps-places-scraper';
 
 /** Lançado quando `APIFY_TOKEN` não está configurado no servidor. */
 export class ApifyConfigError extends Error {
@@ -37,13 +36,9 @@ function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
-function urlList(raw: Record<string, unknown>, key: string): string[] {
-  const v = raw[key];
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x.trim()) : [];
-}
-
 /**
- * Converte um registro bruto do dataset num `RadarPlace`.
+ * Converte um registro bruto do dataset do kaix/google-maps-places-scraper
+ * num `RadarPlace`.
  *
  * @returns `null` quando falta `placeId` ou `title` — sem eles o registro não
  *   serve nem para dedupe nem para leitura.
@@ -54,41 +49,28 @@ export function mapPlace(raw: Record<string, unknown>, collectedAt: string): Rad
   const title = str(raw.title);
   if (!placeId || !title) return null;
 
+  const categories = Array.isArray(raw.categories)
+    ? raw.categories.filter((c): c is string => typeof c === 'string')
+    : [];
+
   return {
     placeId,
     title,
-    categoryName: str(raw.categoryName),
-    address: str(raw.address),
+    // `primaryTypeDisplayName` respeita `language: 'pt-BR'` do input; `categories`
+    // são slugs em inglês da Places API e servem só de fallback.
+    categoryName: str(raw.primaryTypeDisplayName) ?? categories[0] ?? null,
+    address: str(raw.formattedAddress),
     city: str(raw.city),
     phone: str(raw.phone),
     website: str(raw.website),
-    socials: [
-      ...urlList(raw, 'instagrams'),
-      ...urlList(raw, 'facebooks'),
-      ...urlList(raw, 'linkedIns'),
-    ],
-    totalScore: num(raw.totalScore),
-    reviewsCount: num(raw.reviewsCount),
-    url: str(raw.url),
+    // O actor kaix não tem equivalente ao add-on `scrapeContacts` do actor
+    // antigo — não há como enriquecer perfis sociais a partir do site.
+    socials: [],
+    totalScore: num(raw.rating),
+    reviewsCount: num(raw.reviewCount),
+    url: str(raw.googleMapsUri),
     source: 'google_maps',
     collectedAt,
-  };
-}
-
-/**
- * Converte uma avaliação bruta. Avaliação sem texto é descartada: ela não
- * pode virar citação literal, que é o único motivo de puxarmos avaliações.
- */
-export function mapReview(raw: Record<string, unknown>): RadarReview | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const text = str(raw.text);
-  if (!text) return null;
-  return {
-    reviewId: str(raw.reviewId) ?? str(raw.reviewUrl) ?? text.slice(0, 40),
-    text,
-    stars: num(raw.stars),
-    publishedAt: str(raw.publishedAtDate),
-    reviewerName: str(raw.name),
   };
 }
 
@@ -119,16 +101,32 @@ interface RunEnvelope {
   };
 }
 
+const TERMINAL_STATUSES = new Set(['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT']);
+
+/**
+ * Quantos long-polls de reconciliação fazer além da chamada inicial. Cada
+ * chamada já bloqueia até 60s no servidor do Apify (é o próprio `waitForFinish`
+ * que segura a conexão), então isto NÃO é um sleep local — é só um teto de
+ * quantas vezes perguntar de novo. 3 tentativas ⇒ até ~4 minutos de espera
+ * total (1 inicial + 3), abaixo do `maxDuration = 300` das rotas que chamam
+ * isto, com folga para o resto da rota (leituras/gravações no Supabase).
+ */
+const MAX_RECONCILE_POLLS = 3;
+
 /**
  * Roda o actor de forma síncrona e devolve o run com o custo real.
  *
  * `usageTotalUsd` é o valor cobrado de verdade — nunca usar a estimativa aqui.
  *
- * ⚠️ `waitForFinish=300` é o teto de quanto tempo a API segura a conexão, e NÃO
- * garantia de que o run terminou. Estourando esse tempo, a resposta volta 201
- * com `status: 'RUNNING'` e um dataset ainda incompleto. Por isso devolvemos
- * `finished`: quem chama decide o que fazer com um resultado parcial. Aqui não
- * fazemos polling — o parcial é mostrado, e a Task 7 cuida de não cacheá-lo.
+ * ⚠️ `waitForFinish` é limitado pelo Apify a 60s POR CHAMADA, mesmo pedindo
+ * mais — não é o teto real de espera do run. Um run mais lento que isso
+ * volta com `status: 'RUNNING'` e um `usageTotalUsd` que é só o gasto ATÉ
+ * AQUELE INSTANTE — não o custo final. Gravar esse valor como se fosse
+ * definitivo SUBCONTA o gasto real no teto do ciclo, silenciosamente. Por
+ * isso, quando o status não é terminal, isto continua fazendo long-poll em
+ * `GET /actor-runs/{id}` (mesmo teto de 60s por chamada) até um status
+ * terminal ou até `MAX_RECONCILE_POLLS` tentativas — sempre atualizando o
+ * `costUsd` a cada resposta, para nunca devolver um snapshot de custo antigo.
  */
 async function runActorSync(
   actor: string,
@@ -136,7 +134,7 @@ async function runActorSync(
   token: string
 ): Promise<{ runId: string; datasetId: string; costUsd: number; finished: boolean }> {
   const res = await apifyFetch(
-    `/acts/${actor}/runs?waitForFinish=300`,
+    `/acts/${actor}/runs?waitForFinish=60`,
     { method: 'POST', body: JSON.stringify(input) },
     token
   );
@@ -144,12 +142,18 @@ async function runActorSync(
   const runId = json.data?.id;
   const datasetId = json.data?.defaultDatasetId;
   if (!runId || !datasetId) throw new Error('Apify não devolveu runId ou datasetId.');
-  return {
-    runId,
-    datasetId,
-    costUsd: json.data?.usageTotalUsd ?? 0,
-    finished: json.data?.status === 'SUCCEEDED',
-  };
+
+  let status = json.data?.status;
+  let costUsd = json.data?.usageTotalUsd ?? 0;
+
+  for (let attempt = 0; attempt < MAX_RECONCILE_POLLS && (!status || !TERMINAL_STATUSES.has(status)); attempt++) {
+    const pollRes = await apifyFetch(`/actor-runs/${runId}?waitForFinish=60`, { method: 'GET' }, token);
+    const pollJson = (await pollRes.json()) as RunEnvelope;
+    status = pollJson.data?.status;
+    costUsd = pollJson.data?.usageTotalUsd ?? costUsd;
+  }
+
+  return { runId, datasetId, costUsd, finished: status === 'SUCCEEDED' };
 }
 
 /**
@@ -171,14 +175,27 @@ export interface PlacesSearchInput {
   cidade: string;
   uf: string;
   maxResults: number;
-  withContacts: boolean;
+}
+
+/**
+ * Empresa fechada não é lead — descartada depois do run porque o actor kaix
+ * não aceita um filtro de status de negócio no input (diferente do
+ * `skipClosedPlaces` do actor antigo). O `place-scraped` já foi cobrado de
+ * qualquer forma; isto só evita que a empresa fechada chegue à tela.
+ */
+function isOperational(raw: Record<string, unknown>): boolean {
+  const status = raw.businessStatus;
+  return typeof status !== 'string' || status === 'OPERATIONAL';
 }
 
 /**
  * Busca de descoberta no Google Maps.
  *
- * `skipClosedPlaces` fica ligado porque empresa fechada não é lead, e cada
- * lugar retornado é um `place-scraped` cobrado.
+ * `mode: 'basic'` porque é o suficiente para os sinais do score (nota,
+ * volume de avaliações, telefone, categoria) e o mais barato dos três modos.
+ * `language: 'pt-BR'` é obrigatório: `ICP_NICHES` casa substring em
+ * português contra `categoryName`, e sem este parâmetro a Places API devolve
+ * `primaryTypeDisplayName` em inglês, zerando esse sinal para toda empresa.
  */
 export async function runPlacesSearch(
   input: PlacesSearchInput
@@ -189,68 +206,20 @@ export async function runPlacesSearch(
   const { runId, datasetId, costUsd, finished } = await runActorSync(
     PLACES_ACTOR,
     {
-      searchStringsArray: [input.nicho],
-      city: input.cidade,
-      state: input.uf,
-      countryCode: 'br',
+      query: input.nicho,
+      location: `${input.cidade}, ${input.uf}, Brazil`,
+      maxResults: input.maxResults,
+      mode: 'basic',
       language: 'pt-BR',
-      maxCrawledPlacesPerSearch: input.maxResults,
-      scrapeContacts: input.withContacts,
-      skipClosedPlaces: true,
     },
     token
   );
 
   const raw = await readDataset(datasetId, token);
   const places = raw
+    .filter(isOperational)
     .map(item => mapPlace(item, collectedAt))
     .filter((p): p is RadarPlace => p !== null);
 
   return { runId, costUsd, finished, places };
-}
-
-export interface ReviewsInput {
-  placeId: string;
-  maxReviews: number;
-}
-
-/**
- * Avaliações sob demanda de UMA empresa.
- *
- * Corte de custo por DATA, não por termo. `reviewsStartDate` é documentado sem
- * ambiguidade pelo actor (data absoluta `2024-05-03` ou relativa `8 days`,
- * `3 months`), e 180 dias é exatamente a janela que o sinal de +3 do score usa
- * — então filtrar por ela corta `review-scraped` pelo mesmo eixo que a regra de
- * negócio já aplica.
- *
- * Deliberadamente NÃO mandamos `reviewsFilterString`: a doc do actor diz
- * "keywords" no plural mas tipa o campo como `string` única, sem especificar se
- * espaço separa termos ou se a string inteira é uma frase literal. Se for frase
- * literal, o filtro casaria zero avaliações e ainda assim pagaríamos o
- * `place-details-scraped`. NÃO há filtragem por termo — `findAnchorMatches`
- * só ordena e destaca localmente, sem custo, o que voltou dentro da janela de
- * 180 dias. A UI marca visivelmente uma avaliação sem nenhum termo do âncora.
- */
-export async function runReviewsScrape(
-  input: ReviewsInput
-): Promise<{ runId: string; costUsd: number; finished: boolean; reviews: RadarReview[] }> {
-  const token = requireToken();
-
-  const { runId, datasetId, costUsd, finished } = await runActorSync(
-    REVIEWS_ACTOR,
-    {
-      startUrls: [{ url: `https://www.google.com/maps/place/?q=place_id:${input.placeId}` }],
-      maxReviews: input.maxReviews,
-      reviewsSort: 'newest',
-      reviewsStartDate: '180 days',
-      language: 'pt-BR',
-      countryCode: 'br',
-    },
-    token
-  );
-
-  const raw = await readDataset(datasetId, token);
-  const reviews = raw.map(mapReview).filter((r): r is RadarReview => r !== null);
-
-  return { runId, costUsd, finished, reviews };
 }

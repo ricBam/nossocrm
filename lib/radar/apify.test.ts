@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mapPlace, mapReview, runPlacesSearch, ApifyConfigError } from '@/lib/radar/apify';
+import { mapPlace, runPlacesSearch, ApifyConfigError } from '@/lib/radar/apify';
 
 const COLLECTED = '2026-08-31T00:00:00.000Z';
 
@@ -9,14 +9,15 @@ describe('mapPlace', () => {
       {
         placeId: 'ChIJ_1',
         title: 'Clínica Sorriso',
-        categoryName: 'Clínica odontológica',
-        address: 'Rua A, 100',
+        primaryTypeDisplayName: 'Clínica odontológica',
+        categories: ['dental_clinic'],
+        formattedAddress: 'Rua A, 100',
         city: 'Resende',
         phone: '+55 24 3300-1122',
         website: 'https://sorriso.com.br',
-        totalScore: 4.3,
-        reviewsCount: 87,
-        url: 'https://maps.google.com/?cid=1',
+        rating: 4.3,
+        reviewCount: 87,
+        googleMapsUri: 'https://maps.google.com/?cid=1',
       },
       COLLECTED
     );
@@ -53,33 +54,14 @@ describe('mapPlace', () => {
     });
   });
 
-  it('junta os perfis sociais do add-on de contatos', () => {
-    const out = mapPlace(
-      {
-        placeId: 'ChIJ_1', title: 'X',
-        instagrams: ['https://instagram.com/x'],
-        facebooks: ['https://facebook.com/x'],
-      },
-      COLLECTED
-    );
-    expect(out!.socials).toEqual(['https://instagram.com/x', 'https://facebook.com/x']);
-  });
-});
-
-describe('mapReview', () => {
-  it('mapeia os campos usados na leitura', () => {
-    expect(mapReview({
-      reviewId: 'r1', text: 'Demora demais', stars: 2,
-      publishedAtDate: '2026-07-01T00:00:00.000Z', name: 'Fulano',
-    })).toEqual({
-      reviewId: 'r1', text: 'Demora demais', stars: 2,
-      publishedAt: '2026-07-01T00:00:00.000Z', reviewerName: 'Fulano',
-    });
+  it('cai para o primeiro slug de categories quando falta primaryTypeDisplayName', () => {
+    const out = mapPlace({ placeId: 'ChIJ_1', title: 'X', categories: ['dentist', 'health'] }, COLLECTED);
+    expect(out!.categoryName).toBe('dentist');
   });
 
-  it('descarta avaliação sem texto, que não vira citação', () => {
-    expect(mapReview({ reviewId: 'r1', stars: 5 })).toBeNull();
-    expect(mapReview({ reviewId: 'r1', text: '   ', stars: 5 })).toBeNull();
+  it('sempre devolve socials vazio: o actor kaix não tem add-on de contatos', () => {
+    const out = mapPlace({ placeId: 'ChIJ_1', title: 'X' }, COLLECTED);
+    expect(out!.socials).toEqual([]);
   });
 });
 
@@ -98,38 +80,52 @@ describe('runPlacesSearch', () => {
   it('explode com ApifyConfigError quando o token não está configurado', async () => {
     delete process.env.APIFY_TOKEN;
     await expect(
-      runPlacesSearch({ nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 3, withContacts: false })
+      runPlacesSearch({ nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 3 })
     ).rejects.toBeInstanceOf(ApifyConfigError);
   });
 
-  it('manda pt-BR, br e o limite de resultados no input do actor', async () => {
+  it('manda pt-BR, o modo basic e o limite de resultados no input do actor', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
         data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.0125, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response(JSON.stringify([
-        { placeId: 'ChIJ_1', title: 'Clínica A', totalScore: 4.1, reviewsCount: 60 },
+        { placeId: 'ChIJ_1', title: 'Clínica A', rating: 4.1, reviewCount: 60 },
       ]), { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
     const out = await runPlacesSearch({
-      nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 3, withContacts: false,
+      nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 3,
     });
 
+    expect(String(fetchMock.mock.calls[0][0])).toContain('kaix~google-maps-places-scraper');
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body).toMatchObject({
-      searchStringsArray: ['clínica odontológica'],
-      city: 'Resende',
-      state: 'RJ',
-      countryCode: 'br',
+      query: 'clínica odontológica',
+      location: 'Resende, RJ, Brazil',
+      maxResults: 3,
+      mode: 'basic',
       language: 'pt-BR',
-      maxCrawledPlacesPerSearch: 3,
-      scrapeContacts: false,
-      skipClosedPlaces: true,
     });
     expect(out.runId).toBe('run_1');
     expect(out.costUsd).toBeCloseTo(0.0125, 5);
     expect(out.places).toHaveLength(1);
+  });
+
+  it('descarta empresas com businessStatus diferente de OPERATIONAL', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0, status: 'SUCCEEDED' },
+      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { placeId: 'ChIJ_1', title: 'Aberta', businessStatus: 'OPERATIONAL' },
+        { placeId: 'ChIJ_2', title: 'Fechada', businessStatus: 'CLOSED_PERMANENTLY' },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 2 });
+    expect(out.places).toHaveLength(1);
+    expect(out.places[0].placeId).toBe('ChIJ_1');
   });
 
   it('nunca põe o token na URL, só no header Authorization', async () => {
@@ -140,7 +136,7 @@ describe('runPlacesSearch', () => {
       .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1, withContacts: false });
+    await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1 });
 
     for (const call of fetchMock.mock.calls) {
       expect(String(call[0])).not.toContain('tok_teste');
@@ -153,7 +149,7 @@ describe('runPlacesSearch', () => {
       new Response('quota exceeded', { status: 402 })
     ));
     await expect(
-      runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1, withContacts: false })
+      runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1 })
     ).rejects.toThrow(/402/);
   });
 
@@ -169,7 +165,7 @@ describe('runPlacesSearch', () => {
       ]), { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 3, withContacts: false });
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 3 });
     expect(out.places).toHaveLength(1);
     expect(out.places[0].placeId).toBe('ChIJ_1');
   });
@@ -182,26 +178,55 @@ describe('runPlacesSearch', () => {
       .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1, withContacts: false });
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1 });
     expect(out.finished).toBe(true);
   });
 
-  it('marca finished=false quando o run ainda está RUNNING, sem lançar erro', async () => {
-    // waitForFinish é o teto da conexão, não garantia de término: o Apify devolve
-    // 201 com o run em andamento e um dataset possivelmente incompleto.
+  it('marca finished=false quando o run continua RUNNING mesmo após esgotar as tentativas de reconciliação', async () => {
+    // waitForFinish é limitado a 60s por chamada — nem a chamada inicial nem
+    // os polls de reconciliação são garantia de término. Depois de esgotar as
+    // tentativas, o Apify ainda pode devolver o run em andamento.
+    const runningResponse = () => new Response(JSON.stringify({
+      data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.02, status: 'RUNNING' },
+    }), { status: 201, headers: { 'content-type': 'application/json' } });
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.02, status: 'RUNNING' },
-      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(runningResponse()) // POST inicial
+      .mockResolvedValueOnce(runningResponse()) // poll 1
+      .mockResolvedValueOnce(runningResponse()) // poll 2
+      .mockResolvedValueOnce(runningResponse()) // poll 3 (MAX_RECONCILE_POLLS)
       .mockResolvedValueOnce(new Response(JSON.stringify([
         { placeId: 'ChIJ_1', title: 'Parcial' },
       ]), { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
-    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 10, withContacts: false });
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 10 });
     expect(out.finished).toBe(false);
     // O que veio até aqui é devolvido: o dinheiro já saiu, jogar fora seria pior.
     expect(out.places).toHaveLength(1);
     expect(out.costUsd).toBeCloseTo(0.02, 5);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it('reconcilia o custo quando o poll seguinte devolve o run terminado com gasto maior', async () => {
+    // O snapshot inicial (`waitForFinish` estourado) pode trazer um custo que
+    // é só o gasto ATÉ AQUELE INSTANTE, não o final — isto é o que corrige o
+    // bug de subcontagem: o `costUsd` devolvido tem que ser o do ÚLTIMO poll,
+    // não o da chamada inicial.
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.00005, status: 'RUNNING' },
+      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.00335, status: 'SUCCEEDED' },
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { placeId: 'ChIJ_1', title: 'Completa' },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 10 });
+    expect(out.finished).toBe(true);
+    expect(out.costUsd).toBeCloseTo(0.00335, 5);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

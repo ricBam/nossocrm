@@ -65,10 +65,9 @@ export function SearchForm({
     const [cidade, setCidade] = useState('');
     const [uf, setUf] = useState('RJ');
     const [maxResults, setMaxResults] = useState(RESULT_OPTIONS[0]);
-    const [withContacts, setWithContacts] = useState(false);
 
     const camposOk = nicho.trim().length > 0 && cidade.trim().length > 0 && uf.trim().length === 2;
-    const dentroDoTeto = isSearchAllowed(maxResults, withContacts, budget);
+    const dentroDoTeto = isSearchAllowed(maxResults, budget);
     const podeBuscar = camposOk && dentroDoTeto && !isSearching;
 
     return (
@@ -77,7 +76,7 @@ export function SearchForm({
             onSubmit={(e) => {
                 e.preventDefault();
                 if (!podeBuscar) return;
-                onSubmit({ nicho: nicho.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase(), maxResults, withContacts });
+                onSubmit({ nicho: nicho.trim(), cidade: cidade.trim(), uf: uf.trim().toUpperCase(), maxResults });
             }}
         >
             <div className="space-y-1">
@@ -121,16 +120,9 @@ export function SearchForm({
                 </select>
             </div>
 
-            <div className="flex items-center justify-between">
-                <Label htmlFor="radar-contatos" className="text-sm font-normal">
-                    Enriquecer contatos pelo site (+US$ 0,002 por empresa)
-                </Label>
-                <Switch id="radar-contatos" checked={withContacts} onCheckedChange={setWithContacts} />
-            </div>
-
             <fieldset className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                 <legend className="px-1 text-xs text-slate-500 dark:text-slate-400">
-                    Filtros de descoberta — ordenam a fila de leitura, não qualificam
+                    Filtros de descoberta — removem da lista quem não bate (empresa desqualificada continua visível)
                 </legend>
                 <div className="flex items-center justify-between">
                     <Label htmlFor="radar-sem-site" className="text-sm font-normal">Sem site</Label>
@@ -191,7 +183,6 @@ export function SearchForm({
 
             <CostEstimate
                 maxResults={maxResults}
-                withContacts={withContacts}
                 budget={budget}
                 isBudgetLoading={isBudgetLoading}
                 isBudgetError={isBudgetError}
