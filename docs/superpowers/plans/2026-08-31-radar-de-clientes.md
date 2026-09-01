@@ -1420,8 +1420,8 @@ git commit -m "feat(radar): dedupe por place_id e telefone E.164"
 - Consumes: `RadarPlace`, `RadarReview` de `@/lib/radar/types`. **Não** importa nada de `anchors.ts` — a filtragem por termo é local, feita depois, em `findAnchorMatches`.
 - Produces:
   - `class ApifyConfigError extends Error`
-  - `runPlacesSearch(input: PlacesSearchInput): Promise<{ runId: string; costUsd: number; places: RadarPlace[] }>`
-  - `runReviewsScrape(input: ReviewsInput): Promise<{ runId: string; costUsd: number; reviews: RadarReview[] }>`
+  - `runPlacesSearch(input: PlacesSearchInput): Promise<{ runId: string; costUsd: number; finished: boolean; places: RadarPlace[] }>`
+  - `runReviewsScrape(input: ReviewsInput): Promise<{ runId: string; costUsd: number; finished: boolean; reviews: RadarReview[] }>`
   - `mapPlace(raw: Record<string, unknown>, collectedAt: string): RadarPlace | null`
   - `mapReview(raw: Record<string, unknown>): RadarReview | null`
 
@@ -1539,7 +1539,7 @@ describe('runPlacesSearch', () => {
   it('manda pt-BR, br e o limite de resultados no input do actor', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.0125 },
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.0125, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response(JSON.stringify([
         { placeId: 'ChIJ_1', title: 'Clínica A', totalScore: 4.1, reviewsCount: 60 },
@@ -1569,7 +1569,7 @@ describe('runPlacesSearch', () => {
   it('nunca põe o token na URL, só no header Authorization', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0 },
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
@@ -1594,7 +1594,7 @@ describe('runPlacesSearch', () => {
   it('descarta registros inválidos do dataset em vez de quebrar a busca inteira', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0 },
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0, status: 'SUCCEEDED' },
       }), { status: 201, headers: { 'content-type': 'application/json' } }))
       .mockResolvedValueOnce(new Response(JSON.stringify([
         { placeId: 'ChIJ_1', title: 'Boa' },
@@ -1606,6 +1606,37 @@ describe('runPlacesSearch', () => {
     const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 3, withContacts: false });
     expect(out.places).toHaveLength(1);
     expect(out.places[0].placeId).toBe('ChIJ_1');
+  });
+
+  it('marca finished=true quando o run chegou a SUCCEEDED', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.01, status: 'SUCCEEDED' },
+      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 1, withContacts: false });
+    expect(out.finished).toBe(true);
+  });
+
+  it('marca finished=false quando o run ainda está RUNNING, sem lançar erro', async () => {
+    // waitForFinish é o teto da conexão, não garantia de término: o Apify devolve
+    // 201 com o run em andamento e um dataset possivelmente incompleto.
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { id: 'run_1', defaultDatasetId: 'ds_1', usageTotalUsd: 0.02, status: 'RUNNING' },
+      }), { status: 201, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { placeId: 'ChIJ_1', title: 'Parcial' },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runPlacesSearch({ nicho: 'x', cidade: 'Resende', uf: 'RJ', maxResults: 10, withContacts: false });
+    expect(out.finished).toBe(false);
+    // O que veio até aqui é devolvido: o dinheiro já saiu, jogar fora seria pior.
+    expect(out.places).toHaveLength(1);
+    expect(out.costUsd).toBeCloseTo(0.02, 5);
   });
 });
 ```
@@ -1730,18 +1761,31 @@ async function apifyFetch(path: string, init: RequestInit, token: string): Promi
 }
 
 interface RunEnvelope {
-  data?: { id?: string; defaultDatasetId?: string; usageTotalUsd?: number };
+  data?: {
+    id?: string;
+    defaultDatasetId?: string;
+    usageTotalUsd?: number;
+    /** SUCCEEDED, FAILED, RUNNING, TIMED-OUT, ABORTED… */
+    status?: string;
+  };
 }
 
 /**
- * Roda o actor de forma síncrona (`run-sync`) e devolve o run com o custo real.
+ * Roda o actor de forma síncrona e devolve o run com o custo real.
+ *
  * `usageTotalUsd` é o valor cobrado de verdade — nunca usar a estimativa aqui.
+ *
+ * ⚠️ `waitForFinish=300` é o teto de quanto tempo a API segura a conexão, e NÃO
+ * garantia de que o run terminou. Estourando esse tempo, a resposta volta 201
+ * com `status: 'RUNNING'` e um dataset ainda incompleto. Por isso devolvemos
+ * `finished`: quem chama decide o que fazer com um resultado parcial. Aqui não
+ * fazemos polling — o parcial é mostrado, e a Task 7 cuida de não cacheá-lo.
  */
 async function runActorSync(
   actor: string,
   input: Record<string, unknown>,
   token: string
-): Promise<{ runId: string; datasetId: string; costUsd: number }> {
+): Promise<{ runId: string; datasetId: string; costUsd: number; finished: boolean }> {
   const res = await apifyFetch(
     `/acts/${actor}/runs?waitForFinish=300`,
     { method: 'POST', body: JSON.stringify(input) },
@@ -1751,9 +1795,22 @@ async function runActorSync(
   const runId = json.data?.id;
   const datasetId = json.data?.defaultDatasetId;
   if (!runId || !datasetId) throw new Error('Apify não devolveu runId ou datasetId.');
-  return { runId, datasetId, costUsd: json.data?.usageTotalUsd ?? 0 };
+  return {
+    runId,
+    datasetId,
+    costUsd: json.data?.usageTotalUsd ?? 0,
+    finished: json.data?.status === 'SUCCEEDED',
+  };
 }
 
+/**
+ * Lê os itens do dataset.
+ *
+ * Sem `limit`/`offset` a API devolve o dataset inteiro numa resposta só, que é
+ * o comportamento padrão documentado. Nos volumes deste produto (no máximo 100
+ * lugares por busca) isso cabe folgado; se algum dia o teto subir muito, esta
+ * premissa precisa de paginação explícita.
+ */
 async function readDataset(datasetId: string, token: string): Promise<Record<string, unknown>[]> {
   const res = await apifyFetch(`/datasets/${datasetId}/items?clean=true&format=json`, { method: 'GET' }, token);
   const items = (await res.json()) as unknown;
@@ -1776,11 +1833,11 @@ export interface PlacesSearchInput {
  */
 export async function runPlacesSearch(
   input: PlacesSearchInput
-): Promise<{ runId: string; costUsd: number; places: RadarPlace[] }> {
+): Promise<{ runId: string; costUsd: number; finished: boolean; places: RadarPlace[] }> {
   const token = requireToken();
   const collectedAt = new Date().toISOString();
 
-  const { runId, datasetId, costUsd } = await runActorSync(
+  const { runId, datasetId, costUsd, finished } = await runActorSync(
     PLACES_ACTOR,
     {
       searchStringsArray: [input.nicho],
@@ -1800,7 +1857,7 @@ export async function runPlacesSearch(
     .map(item => mapPlace(item, collectedAt))
     .filter((p): p is RadarPlace => p !== null);
 
-  return { runId, costUsd, places };
+  return { runId, costUsd, finished, places };
 }
 
 export interface ReviewsInput {
@@ -1826,10 +1883,10 @@ export interface ReviewsInput {
  */
 export async function runReviewsScrape(
   input: ReviewsInput
-): Promise<{ runId: string; costUsd: number; reviews: RadarReview[] }> {
+): Promise<{ runId: string; costUsd: number; finished: boolean; reviews: RadarReview[] }> {
   const token = requireToken();
 
-  const { runId, datasetId, costUsd } = await runActorSync(
+  const { runId, datasetId, costUsd, finished } = await runActorSync(
     REVIEWS_ACTOR,
     {
       startUrls: [{ url: `https://www.google.com/maps/place/?q=place_id:${input.placeId}` }],
@@ -1845,7 +1902,7 @@ export async function runReviewsScrape(
   const raw = await readDataset(datasetId, token);
   const reviews = raw.map(mapReview).filter((r): r is RadarReview => r !== null);
 
-  return { runId, costUsd, reviews };
+  return { runId, costUsd, finished, reviews };
 }
 ```
 
@@ -2097,8 +2154,12 @@ import type { RadarPlace, ScoreBreakdownItem } from '@/lib/radar/types';
 
 export const maxDuration = 300;
 
-/** Teto duro de resultados por busca. Blindagem contra estouro de custo. */
-const MAX_RESULTS_HARD_CAP = 60;
+/**
+ * Teto duro de resultados por busca. Blindagem contra estouro de custo.
+ * A tela oferece 10..100 de 10 em 10; o schema aceita a partir de 1 para permitir
+ * teste barato em desenvolvimento sem passar pela tela.
+ */
+const MAX_RESULTS_HARD_CAP = 100;
 const CACHE_TTL_DAYS = 30;
 
 const BodySchema = z.object({
@@ -2127,6 +2188,12 @@ export interface SearchResponse {
   origin: 'live' | 'cache';
   costUsd: number;
   cachedAt: string | null;
+  /**
+   * true quando o run do Apify não chegou a SUCCEEDED e a lista pode estar
+   * incompleta. A busca é gravada assim mesmo (o custo saiu), mas marcada
+   * como parcial para nunca ser servida do cache.
+   */
+  partial: boolean;
   budget: BudgetVerdict;
   results: RadarResultDTO[];
 }
@@ -2199,6 +2266,8 @@ export async function POST(req: Request) {
         .eq('nicho', nicho)
         .eq('cidade', cidade)
         .eq('uf', uf)
+        // Busca parcial nunca serve de cache: a lista pode estar incompleta.
+        .eq('partial', false)
         .gte('created_at', cutoff)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -2226,6 +2295,7 @@ export async function POST(req: Request) {
           origin: 'cache',
           costUsd: 0,
           cachedAt: hit.created_at,
+          partial: false,
           budget,
           results,
         });
@@ -2270,6 +2340,7 @@ export async function POST(req: Request) {
         apify_run_id: run.runId,
         cost_usd: run.costUsd,
         origin: 'live',
+        partial: !run.finished,
         places_count: run.places.length,
         created_by: auth.user.id,
       })
@@ -2318,6 +2389,7 @@ export async function POST(req: Request) {
       origin: 'live',
       costUsd: run.costUsd,
       cachedAt: null,
+      partial: !run.finished,
       budget: budgetVerdict({ spentUsd: spentUsd + run.costUsd, estimateUsd: 0, budgetUsd: monthlyBudgetUsd() }),
       results: scored.map(({ place, s, duplicate }) => ({
         id: byPlace.get(place.placeId)?.id ?? place.placeId,
@@ -3007,6 +3079,15 @@ import { Switch } from '@/components/ui/switch';
 import { CostEstimate, isSearchAllowed } from './CostEstimate';
 import type { BudgetSnapshot, RadarSearchVars } from '@/lib/query/hooks/useRadarQuery';
 
+/**
+ * Quantidades oferecidas na tela: 10 a 100, de 10 em 10.
+ *
+ * A rota aceita a partir de 1, para permitir teste barato em desenvolvimento,
+ * mas a tela não oferece valores menores — abaixo de 10 a busca não rende uma
+ * fila de leitura útil. A 100 lugares o custo é de cerca de US$ 0,40.
+ */
+const RESULT_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
 /** Nichos do ICP oferecidos como atalho. O campo aceita texto livre. */
 const NICHOS_ICP = [
     'clínica odontológica',
@@ -3050,7 +3131,7 @@ export function SearchForm({
     const [nicho, setNicho] = useState('');
     const [cidade, setCidade] = useState('');
     const [uf, setUf] = useState('RJ');
-    const [maxResults, setMaxResults] = useState(3);
+    const [maxResults, setMaxResults] = useState(RESULT_OPTIONS[0]);
     const [withContacts, setWithContacts] = useState(false);
 
     const camposOk = nicho.trim().length > 0 && cidade.trim().length > 0 && uf.trim().length === 2;
@@ -3095,14 +3176,16 @@ export function SearchForm({
 
             <div className="space-y-1">
                 <Label htmlFor="radar-max">Máximo de resultados</Label>
-                <Input
+                <select
                     id="radar-max"
-                    type="number"
-                    min={1}
-                    max={60}
+                    className="w-full rounded-md border border-slate-200 bg-transparent p-2 text-sm dark:border-slate-700"
                     value={maxResults}
-                    onChange={(e) => setMaxResults(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
-                />
+                    onChange={(e) => setMaxResults(Number(e.target.value))}
+                >
+                    {RESULT_OPTIONS.map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                    ))}
+                </select>
             </div>
 
             <div className="flex items-center justify-between">
