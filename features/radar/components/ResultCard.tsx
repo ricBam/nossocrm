@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,10 +19,24 @@ export function ResultCard({
     onOpenReviews: (r: RadarResultDTO) => void;
     onSave: (r: RadarResultDTO) => void;
     onDelete: (r: RadarResultDTO) => void;
-    /** Desabilita o botão Apagar enquanto uma exclusão está em andamento. */
+    /** Desabilita o botão Apagar enquanto a exclusão DESTE card está em andamento. */
     deleting?: boolean;
 }) {
     const p = result.place;
+    // Apagar soft-deleta o deal E apaga a linha do Radar (a única evidência
+    // que o justificou), sem undo na UI — por isso o primeiro clique só arma
+    // a confirmação; só o segundo clique dispara `onDelete`. Perder o foco do
+    // botão (clicar em outro lugar do card, ou fora dele) desarma de novo.
+    const [confirmando, setConfirmando] = useState(false);
+
+    function handleDeleteClick() {
+        if (confirmando) {
+            setConfirmando(false);
+            onDelete(result);
+        } else {
+            setConfirmando(true);
+        }
+    }
 
     return (
         <Card className={cn('p-4 space-y-3', result.disqualified && 'opacity-70')}>
@@ -66,9 +81,10 @@ export function ResultCard({
                     size="sm"
                     className="ml-auto text-red-600"
                     disabled={deleting}
-                    onClick={() => onDelete(result)}
+                    onClick={handleDeleteClick}
+                    onBlur={() => setConfirmando(false)}
                 >
-                    Apagar
+                    {confirmando ? 'Confirmar?' : 'Apagar'}
                 </Button>
             </div>
         </Card>

@@ -56,6 +56,7 @@
 | `lib/radar/anchors.ts` | Termos do âncora e destaque de trechos em avaliações |
 | `lib/radar/dedupe.ts` | Dedupe por `place_id` e por telefone E.164 |
 | `lib/radar/apify.ts` | Cliente HTTP do Apify (server-only): dispara run, lê dataset e custo real |
+| `lib/radar/supabaseWrite.ts` | `mustWrite`/`tryWrite`: convenção para checar `error` em toda escrita Supabase do Radar |
 | `app/api/radar/search/route.ts` | POST busca: auth, cache 30d, teto, run, persistência |
 | `app/api/radar/reviews/route.ts` | POST avaliações sob demanda de uma empresa |
 | `app/api/radar/budget/route.ts` | GET acumulado do ciclo |
@@ -2140,6 +2141,7 @@ Expected: FAIL — `Failed to resolve import "@/app/api/radar/search/route"`.
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { tryWrite } from '@/lib/radar/supabaseWrite';
 import { runPlacesSearch, ApifyConfigError } from '@/lib/radar/apify';
 import { computeScore } from '@/lib/radar/score';
 import { buildDedupeIndex, checkDuplicate, type DuplicateReason } from '@/lib/radar/dedupe';
@@ -2382,34 +2384,43 @@ export async function POST(req: Request) {
     // servida do cache (ver comentário no schema de SearchResponse.partial),
     // mas a resposta a ESTA requisição ainda devolve os resultados em
     // memória — um run pago não pode simplesmente sumir da tela do usuário.
+    // `tryWrite` (de `lib/radar/supabaseWrite.ts`) checa `error` sem lançar —
+    // a rota PRECISA continuar e compensar (marcar `partial`), não abortar.
     let persistFailed = false;
     if (scored.length > 0) {
-      const { error: upsertError } = await supabase.from('radar_results').upsert(
-        scored.map(({ place, s }) => ({
-          organization_id: organizationId,
-          search_id: searchId,
-          place_id: place.placeId,
-          payload: place,
-          score: s.score,
-          score_breakdown: s.breakdown,
-          disqualified: s.disqualified,
-          disqualify_reasons: s.disqualifyReasons,
-          collected_at: place.collectedAt,
-        })),
-        { onConflict: 'organization_id,place_id' }
+      const upsertOutcome = await tryWrite(
+        supabase.from('radar_results').upsert(
+          scored.map(({ place, s }) => ({
+            organization_id: organizationId,
+            search_id: searchId,
+            place_id: place.placeId,
+            payload: place,
+            score: s.score,
+            score_breakdown: s.breakdown,
+            disqualified: s.disqualified,
+            disqualify_reasons: s.disqualifyReasons,
+            collected_at: place.collectedAt,
+          })),
+          { onConflict: 'organization_id,place_id' }
+        ),
+        `gravar radar_results para search_id=${searchId}`
       );
 
-      if (upsertError) {
+      if (!upsertOutcome.success) {
         persistFailed = true;
-        console.error(
-          `[radar/search] falha ao gravar radar_results para search_id=${searchId}:`,
-          upsertError.message
+        console.error(`[radar/search] falha ao ${upsertOutcome.message}`);
+        const updateOutcome = await tryWrite(
+          supabase
+            .from('radar_searches')
+            .update({ partial: true })
+            .eq('id', searchId)
+            .eq('organization_id', organizationId),
+          `compensar: marcar search_id=${searchId} como partial failed`
         );
-        await supabase
-          .from('radar_searches')
-          .update({ partial: true })
-          .eq('id', searchId)
-          .eq('organization_id', organizationId);
+
+        if (!updateOutcome.success) {
+          console.error(`[radar/search] falha ao ${updateOutcome.message}`);
+        }
       }
     }
 
@@ -2775,6 +2786,7 @@ git commit -m "feat(radar): hooks de busca por mutation e orcamento do ciclo"
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { tryWrite } from '@/lib/radar/supabaseWrite';
 import { runReviewsScrape, ApifyConfigError } from '@/lib/radar/apify';
 import { computeScore } from '@/lib/radar/score';
 import { rankReviewsByAnchor } from '@/lib/radar/anchors';
@@ -2880,26 +2892,27 @@ export async function POST(req: Request) {
     // O gasto entra no acumulado do ciclo como uma "busca" de origem live.
     // Marcada como parcial quando o run não chegou a SUCCEEDED — o dinheiro saiu
     // e precisa contar, mas a linha não representa uma coleta completa.
-    const { error: insertError } = await supabase.from('radar_searches').insert({
-      organization_id: organizationId,
-      nicho: `avaliações: ${place.title}`,
-      cidade: place.city ?? '-',
-      uf: '--',
-      params: { kind: 'reviews', placeId: place.placeId, maxReviews },
-      apify_run_id: run.runId,
-      cost_usd: run.costUsd,
-      origin: 'live',
-      partial: !run.finished,
-      places_count: 1,
-      created_by: auth.user.id,
-    });
-    if (insertError) {
+    // `tryWrite` checa `error` sem lançar — a rota registra o log e segue.
+    const insertOutcome = await tryWrite(
+      supabase.from('radar_searches').insert({
+        organization_id: organizationId,
+        nicho: `avaliações: ${place.title}`,
+        cidade: place.city ?? '-',
+        uf: '--',
+        params: { kind: 'reviews', placeId: place.placeId, maxReviews },
+        apify_run_id: run.runId,
+        cost_usd: run.costUsd,
+        origin: 'live',
+        partial: !run.finished,
+        places_count: 1,
+        created_by: auth.user.id,
+      }),
+      `registrar gasto em radar_searches — organização ${organizationId}, run ${run.runId}, costUsd ${run.costUsd} NÃO CONTABILIZADO`
+    );
+    if (!insertOutcome.success) {
       // Esse gasto já saiu no Apify e some do teto do ciclo se não for
       // reconciliado à mão — visibilidade máxima.
-      console.error(
-        `[radar/reviews] FALHA ao registrar gasto em radar_searches — organização ${organizationId}, run ${run.runId}, costUsd ${run.costUsd} NÃO CONTABILIZADO:`,
-        insertError
-      );
+      console.error(`[radar/reviews] FALHA ao ${insertOutcome.message}`);
     }
 
     // Só persistimos as avaliações quando o run terminou. Um resultado parcial
@@ -2909,22 +2922,25 @@ export async function POST(req: Request) {
     // sem gravar, e a próxima tentativa busca de novo.
     let persisted = false;
     if (run.finished) {
-      const { error: updateError } = await supabase
-        .from('radar_results')
-        .update({
-          reviews: ranked,
-          reviews_fetched_at: new Date().toISOString(),
-          score: s.score,
-          score_breakdown: s.breakdown,
-          disqualified: s.disqualified,
-          disqualify_reasons: s.disqualifyReasons,
-        })
-        .eq('id', resultId)
-        .eq('organization_id', organizationId);
-      if (updateError) {
-        console.error(`[radar/reviews] FALHA ao gravar avaliações em radar_results ${resultId}:`, updateError);
-      } else {
+      const updateOutcome = await tryWrite(
+        supabase
+          .from('radar_results')
+          .update({
+            reviews: ranked,
+            reviews_fetched_at: new Date().toISOString(),
+            score: s.score,
+            score_breakdown: s.breakdown,
+            disqualified: s.disqualified,
+            disqualify_reasons: s.disqualifyReasons,
+          })
+          .eq('id', resultId)
+          .eq('organization_id', organizationId),
+        `gravar avaliações em radar_results ${resultId}`
+      );
+      if (updateOutcome.success) {
         persisted = true;
+      } else {
+        console.error(`[radar/reviews] FALHA ao ${updateOutcome.message}`);
       }
     }
 
@@ -4342,6 +4358,7 @@ Expected: FAIL — `Failed to resolve import "@/app/api/radar/results/[id]/route
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { mustWrite } from '@/lib/radar/supabaseWrite';
 
 export async function DELETE(
     _req: Request,
@@ -4382,20 +4399,28 @@ export async function DELETE(
         const savedDealId = (row as { saved_deal_id: string | null }).saved_deal_id;
 
         // Soft-delete do deal primeiro: se isto falhar, a evidência continua no
-        // banco e a operação pode ser repetida sem perder rastro.
+        // banco e a operação pode ser repetida sem perder rastro. `mustWrite`
+        // lança se `error` vier preenchido, o que interrompe a função ANTES do
+        // delete abaixo — é essa interrupção que garante a ordem.
         if (savedDealId) {
-            await supabase
-                .from('deals')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', savedDealId)
-                .eq('organization_id', organizationId);
+            await mustWrite(
+                supabase
+                    .from('deals')
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq('id', savedDealId)
+                    .eq('organization_id', organizationId),
+                `soft-delete do deal ${savedDealId}`
+            );
         }
 
-        await supabase
-            .from('radar_results')
-            .delete()
-            .eq('id', id)
-            .eq('organization_id', organizationId);
+        await mustWrite(
+            supabase
+                .from('radar_results')
+                .delete()
+                .eq('id', id)
+                .eq('organization_id', organizationId),
+            `apagar radar_results ${id}`
+        );
 
         return NextResponse.json({ deletedResult: true, deletedDealId: savedDealId ?? null });
     } catch (err) {
@@ -4410,49 +4435,95 @@ export async function DELETE(
 - [ ] **Step 4: Rodar os testes**
 
 Run: `npx vitest run "app/api/radar/results/[id]/route.test.ts"`
-Expected: PASS, 4 testes.
+Expected: PASS, 5 testes — os 4 originais mais um cobrindo a ordem das duas
+escritas (`mock.invocationCallOrder`: o soft-delete do deal resolve antes do
+delete de `radar_results`) e um cobrindo que uma falha no soft-delete do deal
+interrompe a função **antes** do delete — a linha do Radar sobrevive e a rota
+responde 500. Rodar o par "quebra deliberada" antes de fechar: inverter as
+duas escritas na rota, confirmar que o teste de ordem FALHA, desfazer,
+confirmar verde de novo — só assim o teste prova algo.
 
-- [ ] **Step 5: Ligar o botão no card**
+- [ ] **Step 5: Ligar o botão no card, com confirmação em dois cliques**
 
-Em `features/radar/components/ResultCard.tsx`, acrescentar a prop na assinatura:
+O botão soft-deleta o deal E apaga a única evidência que o justificou, sem
+undo na UI. Por isso não dispara no primeiro clique: o primeiro clique só
+troca o rótulo para "Confirmar?"; o segundo dispara `onDelete`. Perder o foco
+do botão (`onBlur` — clicar em outro lugar do card, ou fora dele) desarma a
+confirmação de novo, sem precisar de temporizador nem de `useEffect`.
+
+Em `features/radar/components/ResultCard.tsx`:
 
 ```typescript
+import { useState } from 'react';
+// ...
+
 export function ResultCard({
     result,
     onOpenReviews,
     onSave,
     onDelete,
+    deleting = false,
 }: {
     result: RadarResultDTO;
     onOpenReviews: (r: RadarResultDTO) => void;
     onSave: (r: RadarResultDTO) => void;
     onDelete: (r: RadarResultDTO) => void;
+    /** Desabilita o botão Apagar enquanto a exclusão DESTE card está em andamento. */
+    deleting?: boolean;
 }) {
+    const p = result.place;
+    const [confirmando, setConfirmando] = useState(false);
+
+    function handleDeleteClick() {
+        if (confirmando) {
+            setConfirmando(false);
+            onDelete(result);
+        } else {
+            setConfirmando(true);
+        }
+    }
 ```
 
-e acrescentar o botão dentro do `<div className="flex gap-2">`, depois do "Salvar no CRM":
+e o botão dentro do `<div className="flex gap-2">`, depois do "Salvar no CRM":
 
 ```typescript
-                <Button variant="ghost" size="sm" className="ml-auto text-red-600" onClick={() => onDelete(result)}>
-                    Apagar
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto text-red-600"
+                    disabled={deleting}
+                    onClick={handleDeleteClick}
+                    onBlur={() => setConfirmando(false)}
+                >
+                    {confirmando ? 'Confirmar?' : 'Apagar'}
                 </Button>
 ```
 
 - [ ] **Step 6: Ligar o handler na página**
 
-Em `features/radar/RadarPage.tsx`, acrescentar o estado e o handler junto dos outros:
+`apagandoId` é o id do resultado sendo apagado, não um boolean global — senão
+o delete de um card desabilitaria o botão Apagar de todos os outros. E o
+`catch` mora aqui, não no card: `ResultCard` chama `onDelete` a partir de um
+`onClick` sem `await`/`.catch`, então uma falha sem tratamento aqui vira
+unhandled rejection e o usuário nunca fica sabendo. Em
+`features/radar/RadarPage.tsx`, acrescentar o estado e o handler junto dos
+outros:
 
 ```typescript
-    const [apagando, setApagando] = useState(false);
+    const [apagandoId, setApagandoId] = useState<string | null>(null);
+    const [erroAoApagar, setErroAoApagar] = useState<string | null>(null);
 
     async function apagar(r: RadarResultDTO) {
-        setApagando(true);
+        setApagandoId(r.id);
+        setErroAoApagar(null);
         try {
             const res = await fetch(`/api/radar/results/${r.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Falha ao apagar.');
-            await search.mutateAsync({ ...ultimaBusca!, refresh: false });
+            if (ultimaBusca) await search.mutateAsync({ ...ultimaBusca, refresh: false });
+        } catch (err) {
+            setErroAoApagar(err instanceof Error ? err.message : 'Falha ao apagar.');
         } finally {
-            setApagando(false);
+            setApagandoId(null);
         }
     }
 ```
@@ -4469,10 +4540,20 @@ No `onSubmit` do `SearchForm`, gravar antes de disparar:
                     onSubmit={(vars) => { setUltimaBusca(vars); search.mutate(vars); }}
 ```
 
-E passar o handler ao card:
+Mostrar `erroAoApagar` do mesmo jeito que o erro de busca já é mostrado
+(bloco vermelho acima da lista), e passar o handler e o id ao card:
+
+```typescript
+                {erroAoApagar && (
+                    <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                        {erroAoApagar}
+                    </div>
+                )}
+```
 
 ```typescript
                             onDelete={apagar}
+                            deleting={apagandoId === r.id}
 ```
 
 Acrescentar o import do tipo no topo:
@@ -4483,15 +4564,20 @@ import type { RadarSearchVars } from '@/lib/query/hooks/useRadarQuery';
 
 Observação: recarregar chama a rota de busca com `refresh: false`, que cai no cache dos 30 dias e **não gasta nada**.
 
-- [ ] **Step 7: Verificar lint e tipos**
+- [ ] **Step 7: Testar a confirmação em dois cliques e verificar lint e tipos**
+
+Criar `test/stories/radar-apagar-exige-confirmacao.test.tsx` cobrindo: o
+primeiro clique não chama `fetch` (só troca o rótulo); o segundo chama
+`DELETE /api/radar/results/:id` com o id certo; perder o foco do botão
+desarma a confirmação.
 
 Run: `npm run lint && npm run typecheck`
-Expected: sem erros nem warnings. Se `apagando` ficar sem uso, ligá-lo ao `disabled` do botão Apagar no card via prop, ou removê-lo.
+Expected: sem erros nem warnings.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add "app/api/radar/results" features/radar
+git add "app/api/radar/results" features/radar lib/radar/supabaseWrite.ts lib/radar/supabaseWrite.test.ts test/stories/radar-apagar-exige-confirmacao.test.tsx
 git commit -m "feat(radar): apagar lead do Radar junto com o deal e a evidencia"
 ```
 

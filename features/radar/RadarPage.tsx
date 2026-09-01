@@ -51,7 +51,10 @@ export function RadarPage() {
     const [lendo, setLendo] = useState<RadarResultDTO | null>(null);
     const [salvando, setSalvando] = useState<RadarResultDTO | null>(null);
     const [citacaoSugerida, setCitacaoSugerida] = useState<{ quote: string; date: string | null } | null>(null);
-    const [apagando, setApagando] = useState(false);
+    // Id do resultado sendo apagado agora, não um boolean global — senão o
+    // delete de um card desabilitaria o botão Apagar de todos os outros.
+    const [apagandoId, setApagandoId] = useState<string | null>(null);
+    const [erroAoApagar, setErroAoApagar] = useState<string | null>(null);
     const [ultimaBusca, setUltimaBusca] = useState<RadarSearchVars | null>(null);
 
     const results = search.data?.results ?? [];
@@ -59,14 +62,21 @@ export function RadarPage() {
 
     // Recarrega a busca com `refresh: false` para pegar a lista atualizada sem
     // gastar de novo — cai no cache dos 30 dias.
+    //
+    // ResultCard chama isto sem `await`/`.catch` (é um `onClick`), então o
+    // catch precisa estar AQUI — senão uma falha vira unhandled rejection e o
+    // usuário não fica sabendo que o apagar não aconteceu.
     async function apagar(r: RadarResultDTO) {
-        setApagando(true);
+        setApagandoId(r.id);
+        setErroAoApagar(null);
         try {
             const res = await fetch(`/api/radar/results/${r.id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Falha ao apagar.');
             if (ultimaBusca) await search.mutateAsync({ ...ultimaBusca, refresh: false });
+        } catch (err) {
+            setErroAoApagar(err instanceof Error ? err.message : 'Falha ao apagar.');
         } finally {
-            setApagando(false);
+            setApagandoId(null);
         }
     }
 
@@ -97,6 +107,12 @@ export function RadarPage() {
                     </div>
                 )}
 
+                {erroAoApagar && (
+                    <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                        {erroAoApagar}
+                    </div>
+                )}
+
                 {search.data && (
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                         {search.data.origin === 'cache'
@@ -123,7 +139,7 @@ export function RadarPage() {
                             onOpenReviews={setLendo}
                             onSave={setSalvando}
                             onDelete={apagar}
-                            deleting={apagando}
+                            deleting={apagandoId === r.id}
                         />
                     ))}
                 </div>

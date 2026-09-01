@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { mustWrite } from '@/lib/radar/supabaseWrite';
 
 export async function DELETE(
     _req: Request,
@@ -50,20 +51,28 @@ export async function DELETE(
         const savedDealId = (row as { saved_deal_id: string | null }).saved_deal_id;
 
         // Soft-delete do deal primeiro: se isto falhar, a evidência continua no
-        // banco e a operação pode ser repetida sem perder rastro.
+        // banco e a operação pode ser repetida sem perder rastro. `mustWrite`
+        // lança se `error` vier preenchido, o que interrompe a função ANTES do
+        // delete abaixo — é essa interrupção que garante a ordem.
         if (savedDealId) {
-            await supabase
-                .from('deals')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', savedDealId)
-                .eq('organization_id', organizationId);
+            await mustWrite(
+                supabase
+                    .from('deals')
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq('id', savedDealId)
+                    .eq('organization_id', organizationId),
+                `soft-delete do deal ${savedDealId}`
+            );
         }
 
-        await supabase
-            .from('radar_results')
-            .delete()
-            .eq('id', id)
-            .eq('organization_id', organizationId);
+        await mustWrite(
+            supabase
+                .from('radar_results')
+                .delete()
+                .eq('id', id)
+                .eq('organization_id', organizationId),
+            `apagar radar_results ${id}`
+        );
 
         return NextResponse.json({ deletedResult: true, deletedDealId: savedDealId ?? null });
     } catch (err) {

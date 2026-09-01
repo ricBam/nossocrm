@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { tryWrite } from '@/lib/radar/supabaseWrite';
 import { runReviewsScrape, ApifyConfigError } from '@/lib/radar/apify';
 import { computeScore } from '@/lib/radar/score';
 import { rankReviewsByAnchor } from '@/lib/radar/anchors';
@@ -115,26 +116,26 @@ export async function POST(req: Request) {
     // O gasto entra no acumulado do ciclo como uma "busca" de origem live.
     // Marcada como parcial quando o run não chegou a SUCCEEDED — o dinheiro saiu
     // e precisa contar, mas a linha não representa uma coleta completa.
-    const { error: insertError } = await supabase.from('radar_searches').insert({
-      organization_id: organizationId,
-      nicho: `avaliações: ${place.title}`,
-      cidade: place.city ?? '-',
-      uf: '--',
-      params: { kind: 'reviews', placeId: place.placeId, maxReviews },
-      apify_run_id: run.runId,
-      cost_usd: run.costUsd,
-      origin: 'live',
-      partial: !run.finished,
-      places_count: 1,
-      created_by: auth.user.id,
-    });
-    if (insertError) {
+    const insertOutcome = await tryWrite(
+      supabase.from('radar_searches').insert({
+        organization_id: organizationId,
+        nicho: `avaliações: ${place.title}`,
+        cidade: place.city ?? '-',
+        uf: '--',
+        params: { kind: 'reviews', placeId: place.placeId, maxReviews },
+        apify_run_id: run.runId,
+        cost_usd: run.costUsd,
+        origin: 'live',
+        partial: !run.finished,
+        places_count: 1,
+        created_by: auth.user.id,
+      }),
+      `registrar gasto em radar_searches — organização ${organizationId}, run ${run.runId}, costUsd ${run.costUsd} NÃO CONTABILIZADO`
+    );
+    if (!insertOutcome.success) {
       // Esse gasto já saiu no Apify e some do teto do ciclo se não for
       // reconciliado à mão — visibilidade máxima.
-      console.error(
-        `[radar/reviews] FALHA ao registrar gasto em radar_searches — organização ${organizationId}, run ${run.runId}, costUsd ${run.costUsd} NÃO CONTABILIZADO:`,
-        insertError
-      );
+      console.error(`[radar/reviews] FALHA ao ${insertOutcome.message}`);
     }
 
     // Só persistimos as avaliações quando o run terminou. Um resultado parcial
@@ -144,22 +145,25 @@ export async function POST(req: Request) {
     // sem gravar, e a próxima tentativa busca de novo.
     let persisted = false;
     if (run.finished) {
-      const { error: updateError } = await supabase
-        .from('radar_results')
-        .update({
-          reviews: ranked,
-          reviews_fetched_at: new Date().toISOString(),
-          score: s.score,
-          score_breakdown: s.breakdown,
-          disqualified: s.disqualified,
-          disqualify_reasons: s.disqualifyReasons,
-        })
-        .eq('id', resultId)
-        .eq('organization_id', organizationId);
-      if (updateError) {
-        console.error(`[radar/reviews] FALHA ao gravar avaliações em radar_results ${resultId}:`, updateError);
-      } else {
+      const updateOutcome = await tryWrite(
+        supabase
+          .from('radar_results')
+          .update({
+            reviews: ranked,
+            reviews_fetched_at: new Date().toISOString(),
+            score: s.score,
+            score_breakdown: s.breakdown,
+            disqualified: s.disqualified,
+            disqualify_reasons: s.disqualifyReasons,
+          })
+          .eq('id', resultId)
+          .eq('organization_id', organizationId),
+        `gravar avaliações em radar_results ${resultId}`
+      );
+      if (updateOutcome.success) {
         persisted = true;
+      } else {
+        console.error(`[radar/reviews] FALHA ao ${updateOutcome.message}`);
       }
     }
 

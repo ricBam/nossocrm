@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { tryWrite } from '@/lib/radar/supabaseWrite';
 import { runPlacesSearch, ApifyConfigError } from '@/lib/radar/apify';
 import { computeScore } from '@/lib/radar/score';
 import { buildDedupeIndex, checkDuplicate, type DuplicateReason } from '@/lib/radar/dedupe';
@@ -254,38 +255,38 @@ export async function POST(req: Request) {
     // memória — um run pago não pode simplesmente sumir da tela do usuário.
     let persistFailed = false;
     if (scored.length > 0) {
-      const { error: upsertError } = await supabase.from('radar_results').upsert(
-        scored.map(({ place, s }) => ({
-          organization_id: organizationId,
-          search_id: searchId,
-          place_id: place.placeId,
-          payload: place,
-          score: s.score,
-          score_breakdown: s.breakdown,
-          disqualified: s.disqualified,
-          disqualify_reasons: s.disqualifyReasons,
-          collected_at: place.collectedAt,
-        })),
-        { onConflict: 'organization_id,place_id' }
+      const upsertOutcome = await tryWrite(
+        supabase.from('radar_results').upsert(
+          scored.map(({ place, s }) => ({
+            organization_id: organizationId,
+            search_id: searchId,
+            place_id: place.placeId,
+            payload: place,
+            score: s.score,
+            score_breakdown: s.breakdown,
+            disqualified: s.disqualified,
+            disqualify_reasons: s.disqualifyReasons,
+            collected_at: place.collectedAt,
+          })),
+          { onConflict: 'organization_id,place_id' }
+        ),
+        `gravar radar_results para search_id=${searchId}`
       );
 
-      if (upsertError) {
+      if (!upsertOutcome.success) {
         persistFailed = true;
-        console.error(
-          `[radar/search] falha ao gravar radar_results para search_id=${searchId}:`,
-          upsertError.message
+        console.error(`[radar/search] falha ao ${upsertOutcome.message}`);
+        const updateOutcome = await tryWrite(
+          supabase
+            .from('radar_searches')
+            .update({ partial: true })
+            .eq('id', searchId)
+            .eq('organization_id', organizationId),
+          `compensar: marcar search_id=${searchId} como partial failed`
         );
-        const { error: updateError } = await supabase
-          .from('radar_searches')
-          .update({ partial: true })
-          .eq('id', searchId)
-          .eq('organization_id', organizationId);
 
-        if (updateError) {
-          console.error(
-            `[radar/search] falha ao compensar: marcar search_id=${searchId} como partial failed:`,
-            updateError.message
-          );
+        if (!updateOutcome.success) {
+          console.error(`[radar/search] falha ao ${updateOutcome.message}`);
         }
       }
     }

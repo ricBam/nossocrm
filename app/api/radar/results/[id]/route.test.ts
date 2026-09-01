@@ -9,21 +9,36 @@ const ORG = 'dc09e9de-2030-426b-9dcd-1beae85bac5e';
 const USER = 'c2fce80e-77f6-4c85-9d41-f98d9a2aef16';
 const RESULT_ID = '11111111-1111-4111-8111-111111111111';
 
-const deals = { update: vi.fn(), eq: vi.fn() };
-const results = { delete: vi.fn(), eq: vi.fn() };
+// `then` fica em `vi.fn()` próprio (não `deals.update`/`results.delete`) porque é
+// a resolução da query — não a chamada de encadeamento — que marca QUANDO a
+// escrita realmente aconteceu; é isso que `invocationCallOrder` precisa comparar.
+const deals = { update: vi.fn(), eq: vi.fn(), resolve: vi.fn() };
+const results = { delete: vi.fn(), eq: vi.fn(), resolve: vi.fn() };
 
-function fakeSupabase(opts: { user?: { id: string } | null; row?: { id: string; saved_deal_id: string | null } | null }) {
+function fakeSupabase(opts: {
+    user?: { id: string } | null;
+    row?: { id: string; saved_deal_id: string | null } | null;
+    dealUpdateFails?: boolean;
+}) {
     const dealsBuilder: Record<string, unknown> = {
         update: (v: unknown) => { deals.update(v); return dealsBuilder; },
         eq: (...a: unknown[]) => { deals.eq(...a); return dealsBuilder; },
-        then: (r: (v: { error: null }) => unknown) => r({ error: null }),
+        then: (r: (v: { error: { message: string } | null }) => unknown) => {
+            const result = { error: opts.dealUpdateFails ? { message: 'RLS negou (teste)' } : null };
+            deals.resolve(result);
+            return r(result);
+        },
     };
     const resultsBuilder: Record<string, unknown> = {
         select: () => resultsBuilder,
         delete: () => { results.delete(); return resultsBuilder; },
         eq: (...a: unknown[]) => { results.eq(...a); return resultsBuilder; },
         maybeSingle: async () => ({ data: opts.row === undefined ? { id: RESULT_ID, saved_deal_id: null } : opts.row, error: null }),
-        then: (r: (v: { error: null }) => unknown) => r({ error: null }),
+        then: (r: (v: { error: null }) => unknown) => {
+            const result = { error: null };
+            results.resolve(result);
+            return r(result);
+        },
     };
     return {
         auth: { getUser: async () => ({ data: { user: opts.user === undefined ? { id: USER } : opts.user }, error: null }) },
@@ -45,7 +60,9 @@ const ctx = { params: Promise.resolve({ id: RESULT_ID }) };
 beforeEach(() => {
     vi.clearAllMocks();
     deals.update.mockClear();
+    deals.resolve.mockClear();
     results.delete.mockClear();
+    results.resolve.mockClear();
 });
 
 describe('DELETE /api/radar/results/:id', () => {
@@ -83,5 +100,28 @@ describe('DELETE /api/radar/results/:id', () => {
             expect.objectContaining({ deleted_at: expect.any(String) })
         );
         expect(results.delete).toHaveBeenCalled();
+
+        // A garantia de ordem é o motivo desta rota existir: se o soft-delete do
+        // deal e o delete do Radar fossem invertidos, um soft-delete que falhasse
+        // depois de já ter apagado a evidência não poderia mais ser repetido.
+        // `invocationCallOrder` compara QUANDO cada query resolveu (`then`), não
+        // quando foi montada — é a resolução que importa para a ordem real.
+        const dealResolvedAt = deals.resolve.mock.invocationCallOrder[0];
+        const resultDeletedAt = results.resolve.mock.invocationCallOrder[0];
+        expect(dealResolvedAt).toBeLessThan(resultDeletedAt);
+    });
+
+    it('não apaga a linha do Radar e responde 500 quando o soft-delete do deal falha', async () => {
+        createClient.mockResolvedValue(
+            fakeSupabase({ row: { id: RESULT_ID, saved_deal_id: 'deal_1' }, dealUpdateFails: true })
+        );
+        const res = await DELETE(req(), ctx);
+        const json = await res.json();
+        expect(res.status).toBe(500);
+        expect(json.error).toContain('RLS negou (teste)');
+        expect(deals.update).toHaveBeenCalled();
+        // A evidência sobrevive à falha parcial: é isso que permite repetir a
+        // operação depois.
+        expect(results.delete).not.toHaveBeenCalled();
     });
 });
