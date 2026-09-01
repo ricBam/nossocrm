@@ -45,7 +45,8 @@ import {
   CheckSquare,
   PanelLeftClose,
   PanelLeftOpen,
-  Wallet
+  Wallet,
+  Radar
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -307,6 +308,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             { to: '/dashboard', icon: LayoutDashboard, label: 'Visão Geral', prefetch: 'dashboard' as const, badge: undefined, adminOnly: false },
             { to: '/boards', icon: KanbanSquare, label: 'Boards', prefetch: 'boards' as const, badge: undefined, adminOnly: false },
             { to: '/contacts', icon: Users, label: 'Contatos', prefetch: 'contacts' as const, badge: undefined, adminOnly: false },
+            { to: '/radar', icon: Radar, label: 'Radar', prefetch: undefined, badge: undefined, adminOnly: true },
             { to: '/activities', icon: CheckSquare, label: 'Atividades', prefetch: 'activities' as const, badge: undefined, adminOnly: false },
             { to: '/reports', icon: BarChart3, label: 'Relatórios', prefetch: 'reports' as const, badge: undefined, adminOnly: false },
             { to: '/financial', icon: Wallet, label: 'Financeiro', prefetch: undefined, badge: undefined, adminOnly: true },
