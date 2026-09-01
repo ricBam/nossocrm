@@ -275,11 +275,18 @@ export async function POST(req: Request) {
           `[radar/search] falha ao gravar radar_results para search_id=${searchId}:`,
           upsertError.message
         );
-        await supabase
+        const { error: updateError } = await supabase
           .from('radar_searches')
           .update({ partial: true })
           .eq('id', searchId)
           .eq('organization_id', organizationId);
+
+        if (updateError) {
+          console.error(
+            `[radar/search] falha ao compensar: marcar search_id=${searchId} como partial failed:`,
+            updateError.message
+          );
+        }
       }
     }
 

@@ -154,6 +154,7 @@ describe('POST /api/radar/search — execução ao vivo', () => {
     createClient.mockResolvedValue(fakeSupabase({}));
     runPlacesSearch.mockResolvedValue({
       runId: 'run_1',
+      finished: true,
       costUsd: 0.0131,
       places: [{
         placeId: 'ChIJ_1', title: 'Clínica A', categoryName: 'Clínica odontológica',
@@ -172,11 +173,12 @@ describe('POST /api/radar/search — execução ao vivo', () => {
     expect(json.results).toHaveLength(1);
     expect(json.results[0].score).toBeGreaterThan(0);
     expect(json.results[0].breakdown.length).toBe(5);
+    expect(json.partial).toBe(false);
   });
 
   it('nunca deixa maxResults acima do teto passar para o actor', async () => {
     createClient.mockResolvedValue(fakeSupabase({}));
-    runPlacesSearch.mockResolvedValue({ runId: 'run_1', costUsd: 0, places: [] });
+    runPlacesSearch.mockResolvedValue({ runId: 'run_1', finished: true, costUsd: 0, places: [] });
     await POST(req({ ...VALID, maxResults: 20 }));
     expect(runPlacesSearch).toHaveBeenCalledWith(
       expect.objectContaining({ maxResults: 20, nicho: 'clínica odontológica' })
@@ -189,6 +191,7 @@ describe('POST /api/radar/search — execução ao vivo', () => {
     createClient.mockResolvedValue(supabase);
     runPlacesSearch.mockResolvedValue({
       runId: 'run_1',
+      finished: true,
       costUsd: 0.0131,
       places: [{
         placeId: 'ChIJ_1', title: 'Clínica A', categoryName: 'Clínica odontológica',
