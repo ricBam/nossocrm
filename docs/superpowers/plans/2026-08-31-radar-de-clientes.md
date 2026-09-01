@@ -2869,6 +2869,8 @@ export async function POST(req: Request) {
     const s = computeScore(place, { reviews: ranked });
 
     // O gasto entra no acumulado do ciclo como uma "busca" de origem live.
+    // Marcada como parcial quando o run não chegou a SUCCEEDED — o dinheiro saiu
+    // e precisa contar, mas a linha não representa uma coleta completa.
     await supabase.from('radar_searches').insert({
       organization_id: organizationId,
       nicho: `avaliações: ${place.title}`,
@@ -2878,28 +2880,39 @@ export async function POST(req: Request) {
       apify_run_id: run.runId,
       cost_usd: run.costUsd,
       origin: 'live',
+      partial: !run.finished,
       places_count: 1,
       created_by: auth.user.id,
     });
 
-    await supabase
-      .from('radar_results')
-      .update({
-        reviews: ranked,
-        reviews_fetched_at: new Date().toISOString(),
-        score: s.score,
-        score_breakdown: s.breakdown,
-        disqualified: s.disqualified,
-        disqualify_reasons: s.disqualifyReasons,
-      })
-      .eq('id', resultId)
-      .eq('organization_id', organizationId);
+    // Só persistimos as avaliações quando o run terminou. Um resultado parcial
+    // gravado aqui viraria cache permanente: a checagem lá em cima devolve o que
+    // estiver em `reviews` sem nunca reconsultar o Apify, então uma coleta pela
+    // metade ficaria congelada para sempre. Devolvemos o parcial para leitura,
+    // sem gravar, e a próxima tentativa busca de novo.
+    if (run.finished) {
+      await supabase
+        .from('radar_results')
+        .update({
+          reviews: ranked,
+          reviews_fetched_at: new Date().toISOString(),
+          score: s.score,
+          score_breakdown: s.breakdown,
+          disqualified: s.disqualified,
+          disqualify_reasons: s.disqualifyReasons,
+        })
+        .eq('id', resultId)
+        .eq('organization_id', organizationId);
+    }
 
     return NextResponse.json({
       reviews: ranked,
       costUsd: run.costUsd,
       score: s.score,
       breakdown: s.breakdown,
+      // false quando o run não terminou: a lista pode estar incompleta e NÃO foi
+      // gravada, então uma nova tentativa vai buscar de novo.
+      persisted: run.finished,
     });
   } catch (err) {
     if (err instanceof ApifyConfigError) {
