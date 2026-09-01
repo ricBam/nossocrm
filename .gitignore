@@ -43,6 +43,8 @@ dev_server.log
 .specify/
 .claude/
 .mcp.json
+.superpowers/
+.impeccable/
 
 # Temporary files
 tmp/
@@ -81,6 +83,7 @@ docs/prd-*.md
 docs/specs/
 docs/stories/
 docs/security/
+docs/superpowers/
 
 # Dev/debug scripts (not needed for app to run)
 scripts/
