@@ -89,6 +89,43 @@ export interface SearchResponse {
   results: RadarResultDTO[];
 }
 
+/**
+ * Linha candidata a cache-hit. `params` guarda o corpo da requisição que a
+ * gerou — é dali que sai o teto de resultados daquela busca.
+ */
+interface CacheCandidateRow {
+  id: string;
+  created_at: string;
+  params: { maxResults?: unknown } | null;
+  places_count: number | null;
+}
+
+/**
+ * Decide se uma busca guardada responde a um pedido de `wanted` resultados.
+ *
+ * A chave do cache é nicho+cidade+uf; `maxResults` fica de fora de propósito
+ * (uma busca de 50 também serve quem pede 10). O que NÃO pode acontecer é o
+ * inverso: servir uma busca antiga de 10 — que parou por ter batido no próprio
+ * teto — para quem agora pede 50. A tela devolveria 10 dizendo "não gastou
+ * nada", e o usuário que pediu mais receberia menos, sem aviso.
+ *
+ * Duas situações servem:
+ * - o teto daquela busca já era >= o pedido agora: o conjunto guardado é, no
+ *   mínimo, tão completo quanto o pedido;
+ * - a busca devolveu MENOS lugares do que o teto dela permitia: a região se
+ *   esgotou, e pagar de novo por um teto maior não traria nada de novo.
+ *
+ * Linha antiga sem `params.maxResults` mantém o comportamento anterior (serve
+ * do cache): na dúvida, não gastar. Cache errado custa zero; run errado custa
+ * dinheiro.
+ */
+function cacheAtende(row: CacheCandidateRow, wanted: number): boolean {
+  const tetoDaBusca = Number(row.params?.maxResults);
+  if (!Number.isFinite(tetoDaBusca)) return true;
+  if (tetoDaBusca >= wanted) return true;
+  return Number(row.places_count ?? 0) < tetoDaBusca;
+}
+
 async function resolveOrg(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase
     .from('profiles')
@@ -161,7 +198,7 @@ export async function POST(req: Request) {
       const cutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
       const { data: cached } = await supabase
         .from('radar_searches')
-        .select('id, created_at')
+        .select('id, created_at, params, places_count')
         .eq('organization_id', organizationId)
         .eq('nicho', nicho)
         .eq('cidade', cidade)
@@ -170,9 +207,13 @@ export async function POST(req: Request) {
         .eq('partial', false)
         .gte('created_at', cutoff)
         .order('created_at', { ascending: false })
-        .limit(1);
+        // Mais de uma candidata porque a mais recente pode ter sido feita com
+        // um teto menor do que o pedido agora; uma anterior, mais generosa,
+        // ainda serve e evita um run pago.
+        .limit(10);
 
-      const hit = (cached ?? [])[0] as { id: string; created_at: string } | undefined;
+      const candidatas = (cached ?? []) as unknown as CacheCandidateRow[];
+      const hit = candidatas.find(row => cacheAtende(row, body.maxResults));
       if (hit) {
         // A filiação vem de `radar_search_results`, NÃO de
         // `radar_results.search_id`: um lugar encontrado por duas buscas tem uma

@@ -182,6 +182,79 @@ describe('POST /api/radar/search — cache', () => {
     expect(json.cachedAt).toBe(ontem);
     expect(runPlacesSearch).not.toHaveBeenCalled();
   });
+
+  // O cache é indexado por nicho/cidade/uf — `maxResults` NÃO entra na chave.
+  // Sem esta regra, uma busca antiga de 10 lugares que bateu no próprio teto
+  // é servida para quem agora pede 50, e a tela devolve 10 dizendo que não
+  // gastou nada. O usuário pediu mais e recebeu menos, sem aviso.
+  it('ignora o cache quando a busca antiga bateu no próprio teto e agora se pede mais', async () => {
+    const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    createClient.mockResolvedValue(fakeSupabase({
+      searchRows: [{
+        id: 'search_antiga', created_at: ontem,
+        params: { nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 10 },
+        places_count: 10,
+      }],
+    }));
+    runPlacesSearch.mockResolvedValue({ runId: 'run_1', finished: true, costUsd: 0.02, places: [] });
+
+    const res = await POST(req({ ...VALID, maxResults: 50 }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.origin).toBe('live');
+    expect(runPlacesSearch).toHaveBeenCalledWith(expect.objectContaining({ maxResults: 50 }));
+  });
+
+  // O contrário: a busca antiga PODIA trazer 50 e só achou 4 — a região se
+  // esgotou. Pedir 50 de novo não traria nada de novo, então gastar seria
+  // queimar dinheiro por nada.
+  it('serve do cache quando a busca antiga devolveu menos do que o teto dela', async () => {
+    const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    createClient.mockResolvedValue(fakeSupabase({
+      searchRows: [{
+        id: 'search_antiga', created_at: ontem,
+        params: { nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 10 },
+        places_count: 4,
+      }],
+      resultRows: [{
+        id: 'res_1', place_id: 'ChIJ_1',
+        payload: { placeId: 'ChIJ_1', title: 'Clínica A', source: 'google_maps', collectedAt: ontem, socials: [] },
+        score: 5, score_breakdown: [], disqualified: false, disqualify_reasons: [], saved_deal_id: null,
+      }],
+    }));
+
+    const res = await POST(req({ ...VALID, maxResults: 50 }));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.origin).toBe('cache');
+    expect(runPlacesSearch).not.toHaveBeenCalled();
+  });
+
+  // Pedir MENOS do que a busca antiga já pagou continua sendo cache: o
+  // conjunto guardado é, no mínimo, tão completo quanto o pedido.
+  it('serve do cache quando se pede menos do que a busca antiga trouxe', async () => {
+    const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    createClient.mockResolvedValue(fakeSupabase({
+      searchRows: [{
+        id: 'search_antiga', created_at: ontem,
+        params: { nicho: 'clínica odontológica', cidade: 'Resende', uf: 'RJ', maxResults: 50 },
+        places_count: 50,
+      }],
+      resultRows: [{
+        id: 'res_1', place_id: 'ChIJ_1',
+        payload: { placeId: 'ChIJ_1', title: 'Clínica A', source: 'google_maps', collectedAt: ontem, socials: [] },
+        score: 5, score_breakdown: [], disqualified: false, disqualify_reasons: [], saved_deal_id: null,
+      }],
+    }));
+
+    const res = await POST(req({ ...VALID, maxResults: 10 }));
+    const json = await res.json();
+
+    expect(json.origin).toBe('cache');
+    expect(runPlacesSearch).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /api/radar/search — execução ao vivo', () => {
