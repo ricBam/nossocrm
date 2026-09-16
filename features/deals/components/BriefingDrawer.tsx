@@ -45,7 +45,7 @@ function BriefingSkeleton() {
       </div>
 
       {/* BANT grid skeleton */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
@@ -182,7 +182,8 @@ export function BriefingDrawer({
                 'w-full max-w-lg',
                 'bg-white dark:bg-dark-card',
                 'border-l border-slate-200 dark:border-white/10',
-                'shadow-2xl flex flex-col overflow-hidden'
+                'shadow-2xl flex flex-col overflow-hidden',
+                'pt-[var(--app-safe-area-top,0px)] pb-[var(--app-safe-area-bottom,0px)]'
               )}
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
@@ -191,12 +192,12 @@ export function BriefingDrawer({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/10 shrink-0">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-3 p-4 border-b border-slate-200 dark:border-white/10 shrink-0">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="p-2 bg-primary-100 dark:bg-primary-500/20 rounded-lg">
                     <FileText className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="font-bold text-slate-900 dark:text-white">
                       Preparar Conversa
                     </h2>
@@ -207,7 +208,8 @@ export function BriefingDrawer({
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  className="shrink-0 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  aria-label="Fechar"
                 >
                   <X className="w-5 h-5" />
                 </button>

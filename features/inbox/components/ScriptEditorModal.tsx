@@ -109,7 +109,7 @@ export function ScriptEditorModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center">
+        <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center pt-[var(--app-safe-area-top,0px)] pb-[var(--app-safe-area-bottom,0px)]">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -117,22 +117,23 @@ export function ScriptEditorModal({
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-2xl mx-4 bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="relative w-full max-w-2xl mx-4 bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 shrink-0">
                     <h2 className="text-lg font-semibold text-white">
                         {initialData?.id ? 'Editar Script' : 'Novo Script'}
                     </h2>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        aria-label="Fechar"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-5 max-h-[70vh] min-h-0 overflow-y-auto">
                     {/* Title */}
                     <div>
                         <label className="block text-xs font-medium text-slate-400 mb-2">
@@ -148,7 +149,7 @@ export function ScriptEditorModal({
                     </div>
 
                     {/* Category & Icon Row */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Category */}
                         <div>
                             <label className="block text-xs font-medium text-slate-400 mb-2">
@@ -172,7 +173,7 @@ export function ScriptEditorModal({
                             <label className="block text-xs font-medium text-slate-400 mb-2">
                                 Ícone
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 {ICONS.map((iconOption) => {
                                     const IconComponent = iconOption.icon;
                                     return (
@@ -234,7 +235,7 @@ export function ScriptEditorModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 bg-slate-950/50">
+                <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-white/10 bg-slate-950/50 shrink-0">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"

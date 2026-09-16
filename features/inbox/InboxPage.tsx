@@ -65,11 +65,11 @@ export const InboxPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-6">
+    <div className="max-w-6xl mx-auto md:py-8 md:px-6">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-3xl font-bold font-display text-slate-900 dark:text-white mb-1">
+          <h1 className="text-2xl md:text-3xl font-bold font-display text-slate-900 dark:text-white mb-1">
             Inbox
           </h1>
           <p className="text-slate-500 dark:text-slate-400">Sua mesa de trabalho.</p>
