@@ -10,6 +10,8 @@ import {
   BarChart3,
   Settings,
   User,
+  Radar,
+  Wallet,
 } from 'lucide-react';
 
 export type PrimaryNavId = 'inbox' | 'messaging' | 'boards' | 'contacts' | 'activities' | 'more';
@@ -31,19 +33,28 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
   { id: 'more', label: 'Mais', icon: MoreHorizontal },
 ];
 
-export type SecondaryNavId = 'dashboard' | 'reports' | 'settings' | 'profile';
+export type SecondaryNavId = 'dashboard' | 'radar' | 'reports' | 'financial' | 'settings' | 'profile';
 
 export interface SecondaryNavItem {
   id: SecondaryNavId;
   label: string;
   href: string;
   icon: ComponentType<{ className?: string }>;
+  /** Only visible to admins (mirrors the desktop sidebar). */
+  adminOnly?: boolean;
 }
 
 /** Mirrors non-primary destinations available in the desktop sidebar/user menu. */
 export const SECONDARY_NAV: SecondaryNavItem[] = [
   { id: 'dashboard', label: 'Visão Geral', href: '/dashboard', icon: LayoutDashboard },
+  { id: 'radar', label: 'Radar', href: '/radar', icon: Radar, adminOnly: true },
   { id: 'reports', label: 'Relatórios', href: '/reports', icon: BarChart3 },
+  { id: 'financial', label: 'Financeiro', href: '/financial', icon: Wallet, adminOnly: true },
   { id: 'settings', label: 'Configurações', href: '/settings', icon: Settings },
   { id: 'profile', label: 'Perfil', href: '/profile', icon: User },
 ];
+
+/** Hides admin-only destinations from non-admin users. */
+export function filterNavByRole<T extends { adminOnly?: boolean }>(items: T[], role?: string | null): T[] {
+  return items.filter((item) => !item.adminOnly || role === 'admin');
+}

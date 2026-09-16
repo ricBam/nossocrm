@@ -26,10 +26,10 @@ export function FullscreenSheet({ isOpen, onClose, title, children, footer, clas
       isOpen={isOpen}
       onClose={onClose}
       ariaLabel={title}
-      className={cn('h-[100dvh] rounded-none', className)}
+      className={cn('h-[100dvh] rounded-none pb-0', className)}
     >
-      <div className="flex h-[100dvh] flex-col">
-        <div className="shrink-0 border-b border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card">
+      <div className="flex h-full flex-col">
+        <div className="shrink-0 border-b border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card pt-[var(--app-safe-area-top,0px)]">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0 text-sm font-semibold text-slate-900 dark:text-white truncate">{title}</div>
             <button
@@ -43,10 +43,10 @@ export function FullscreenSheet({ isOpen, onClose, title, children, footer, clas
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-4 py-4">{children}</div>
 
         {footer ? (
-          <div className="shrink-0 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card px-4 py-3">
+          <div className="shrink-0 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card px-4 pt-3 pb-[calc(0.75rem+var(--app-safe-area-bottom,0px))]">
             {footer}
           </div>
         ) : null}

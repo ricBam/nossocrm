@@ -476,3 +476,32 @@ body {
 .cv-card-lg {
   contain-intrinsic-size: auto 200px; /* Cards grandes (com preview) */
 }
+/* ========================================
+ * Mobile / touch
+ * ======================================== */
+
+/* A altura da bottom nav acompanha o breakpoint via CSS (sem esperar o JS medir a viewport). */
+@media (max-width: 767px) {
+  :root {
+    --app-bottom-nav-height: 56px;
+  }
+
+  /* Inputs com fonte < 16px fazem o iOS dar zoom ao focar. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/*
+ * Tailwind v4 só aplica `hover:` em dispositivos com hover, então ações reveladas por
+ * `group-hover:opacity-100` ficariam invisíveis para sempre no toque. Em telas touch elas
+ * ficam sempre visíveis. (Fora de @layer para vencer as utilities `opacity-0`.)
+ */
+@media (hover: none) {
+  [class~='group-hover:opacity-100'],
+  [class~='group-hover/header:opacity-100'] {
+    opacity: 1;
+  }
+}
