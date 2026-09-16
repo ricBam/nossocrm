@@ -277,18 +277,18 @@ export const UsersPage: React.FC = () => {
         <div className="max-w-4xl mx-auto pb-10">
             {/* Header */}
             <div className="mb-10">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
                             Sua Equipe
                         </h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
+                        <p className="text-slate-500 dark:text-slate-400 mt-2 text-base sm:text-lg">
                             {users.length} {users.length === 1 ? 'membro' : 'membros'} • {admins.length} admin{admins.length !== 1 && 's'}, {vendedores.length} vendedor{vendedores.length !== 1 && 'es'}
                         </p>
                     </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="group flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-500 transition-all shadow-lg shadow-primary-600/25 hover:shadow-xl hover:shadow-primary-600/30 hover:-translate-y-0.5 font-medium"
+                        className="group shrink-0 flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-500 transition-all shadow-lg shadow-primary-600/25 hover:shadow-xl hover:shadow-primary-600/30 hover:-translate-y-0.5 font-medium"
                     >
                         <UserPlus className="w-4 h-4 transition-transform group-hover:scale-110" />
                         Convidar
@@ -305,12 +305,12 @@ export const UsersPage: React.FC = () => {
                     return (
                         <div
                             key={user.id}
-                            className={`group relative bg-white dark:bg-white/[0.03] border rounded-2xl p-5 transition-all duration-200 hover:shadow-lg dark:hover:bg-white/[0.05] ${isCurrentUser
+                            className={`group relative bg-white dark:bg-white/[0.03] border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:shadow-lg dark:hover:bg-white/[0.05] ${isCurrentUser
                                 ? 'border-primary-200 dark:border-primary-500/30 ring-1 ring-primary-100 dark:ring-primary-500/10'
                                 : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
                                 }`}
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
                                 {/* Avatar */}
                                 <div className={`relative flex-shrink-0 h-14 w-14 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold text-lg shadow-lg`}>
                                     {initials}
@@ -339,7 +339,7 @@ export const UsersPage: React.FC = () => {
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-3 mt-1.5">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5">
                                         <span className={`inline-flex items-center gap-1.5 text-sm ${user.role === 'admin'
                                             ? 'text-amber-600 dark:text-amber-400'
                                             : 'text-slate-500 dark:text-slate-400'
@@ -378,7 +378,7 @@ export const UsersPage: React.FC = () => {
                                                 {/* Resend Invite removed as we don't use email invites anymore */}
                                                 <button
                                                     onClick={() => handleDeleteUser(user)}
-                                                    className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                                                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                                                     title={user.status === 'pending' ? 'Cancelar convite' : 'Remover usuário'}
                                                 >
                                                     <Trash2 className="h-4 w-4" />

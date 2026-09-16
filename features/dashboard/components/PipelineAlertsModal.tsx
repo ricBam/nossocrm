@@ -113,7 +113,7 @@ export const PipelineAlertsModal: React.FC<PipelineAlertsModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center"
+      className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center p-4 md:p-0"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
@@ -123,7 +123,7 @@ export const PipelineAlertsModal: React.FC<PipelineAlertsModalProps> = ({
       {/* Modal */}
       <div className="relative bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden border border-slate-200 dark:border-white/10">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/10">
+        <div className="flex items-center justify-between gap-3 p-4 sm:p-6 border-b border-slate-200 dark:border-white/10">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Clock className="text-primary-500" size={24} />
@@ -146,7 +146,7 @@ export const PipelineAlertsModal: React.FC<PipelineAlertsModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh] space-y-6">
           {alerts.map((alert) => (
             <div key={alert.type} className="space-y-3">
               {/* Alert Header */}
@@ -175,7 +175,7 @@ export const PipelineAlertsModal: React.FC<PipelineAlertsModalProps> = ({
 
               {/* Deals List */}
               {alert.deals.length > 0 ? (
-                <div className="space-y-2 pl-11">
+                <div className="space-y-2 sm:pl-11">
                   {alert.deals.slice(0, 5).map((deal) => (
                     <button
                       key={deal.id}

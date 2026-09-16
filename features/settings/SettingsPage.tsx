@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSettingsController } from './hooks/useSettingsController';
 import { TagsManager } from './components/TagsManager';
@@ -49,7 +49,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ hash, isAdmin }) => {
     <div className="pb-10">
       {/* General Settings */}
       <div className="mb-12">
-        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
+        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Página Inicial</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
             Escolha qual tela deve abrir quando você iniciar o CRM.
@@ -149,7 +149,7 @@ const IntegrationsSettings: React.FC = () => {
 
   return (
     <div className="pb-10">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         {([
           { id: 'channels' as const, label: 'Canais (Messaging)' },
           { id: 'webhooks' as const, label: 'Webhooks' },
@@ -193,6 +193,22 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
   const { profile } = useAuth();
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Partial<Record<SettingsTab, HTMLButtonElement | null>>>({});
+
+  // Mobile: a barra de abas rola horizontalmente — mantém a aba ativa visível.
+  useEffect(() => {
+    const container = tabsContainerRef.current;
+    const tabEl = tabRefs.current[activeTab];
+    if (!container || !tabEl || container.scrollWidth <= container.clientWidth) return;
+    const left = tabEl.offsetLeft;
+    const right = left + tabEl.offsetWidth;
+    if (left < container.scrollLeft) {
+      container.scrollLeft = Math.max(0, left - 16);
+    } else if (right > container.scrollLeft + container.clientWidth) {
+      container.scrollLeft = right - container.clientWidth + 16;
+    }
+  }, [activeTab, profile?.role]);
 
   // Get hash from URL for scrolling
   const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -257,14 +273,18 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ tab: initialTab }) => {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Tabs minimalistas */}
-      <div className="flex items-center gap-1 mb-8 border-b border-slate-200 dark:border-white/10">
+      <div
+        ref={tabsContainerRef}
+        className="relative flex items-center gap-1 mb-6 md:mb-8 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-slate-200 dark:border-white/10"
+      >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              ref={(el) => { tabRefs.current[tab.id] = el; }}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${isActive
+              className={`relative flex shrink-0 whitespace-nowrap items-center gap-2 px-3 md:px-4 py-3 text-sm font-medium transition-colors ${isActive
                 ? 'text-primary-600 dark:text-primary-400'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}

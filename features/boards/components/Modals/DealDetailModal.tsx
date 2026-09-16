@@ -437,9 +437,9 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
       }
     >
           {/* HEADER (Stage Bar + Won/Lost) */}
-          <div className="bg-slate-50 dark:bg-black/20 border-b border-slate-200 dark:border-white/10 p-6 shrink-0">
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex-1 mr-8">
+          <div className="bg-slate-50 dark:bg-black/20 border-b border-slate-200 dark:border-white/10 p-4 md:p-6 shrink-0">
+            <div className="flex flex-col-reverse md:flex-row justify-between items-stretch md:items-start gap-3 md:gap-0 mb-4 md:mb-6">
+              <div className="flex-1 min-w-0 md:mr-8">
                 {isEditingTitle ? (
                   <div className="flex gap-2 mb-1">
                     <input
@@ -462,11 +462,11 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                       setEditTitle(deal.title);
                       setIsEditingTitle(true);
                     }}
-                    className="text-2xl font-bold text-slate-900 dark:text-white font-display leading-tight cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-2 group transition-colors"
+                    className="text-xl md:text-2xl break-words font-bold text-slate-900 dark:text-white font-display leading-tight cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-2 group transition-colors"
                     title="Clique para editar"
                   >
                     {deal.title}
-                    <Pencil size={16} className="opacity-0 group-hover:opacity-50 text-slate-400" />
+                    <Pencil size={16} className="shrink-0 opacity-0 group-hover:opacity-50 max-md:opacity-50 pointer-coarse:opacity-50 text-slate-400" />
                   </h2>
                 )}
 
@@ -499,7 +499,7 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                   </p>
                 )}
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex flex-wrap gap-2 md:gap-3 items-center">
                 {/* Se fechado: mostra badge + botão Reabrir */}
                 {(deal.isWon || deal.isLost) ? (
                   <>
@@ -519,7 +519,7 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                           updateDeal(deal.id, { isWon: false, isLost: false, closedAt: undefined });
                         }
                       }}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
+                      className="px-3 md:px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
                     >
                       ↩ Reabrir
                     </button>
@@ -561,7 +561,7 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                         }
                         onClose();
                       }}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-sm shadow-sm flex items-center gap-2"
+                      className="px-3 md:px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-sm shadow-sm flex items-center gap-2"
                     >
                       <ThumbsUp size={16} /> GANHO
                     </button>
@@ -583,7 +583,7 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                         setLossReasonOrigin('button');
                         setShowLossReasonModal(true);
                       }}
-                      className="px-4 py-2 bg-transparent border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold text-sm shadow-sm flex items-center gap-2"
+                      className="px-3 md:px-4 py-2 bg-transparent border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-bold text-sm shadow-sm flex items-center gap-2"
                     >
                       <ThumbsDown size={16} /> PERDIDO
                     </button>
@@ -591,7 +591,7 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                 )}
                 <button
                   onClick={() => setShowBriefingDrawer(true)}
-                  className="ml-2 px-3 py-1.5 bg-primary-100 dark:bg-primary-500/20 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-500/30 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                  className="ml-auto md:ml-2 px-3 py-2 md:py-1.5 bg-primary-100 dark:bg-primary-500/20 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-500/30 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
                   title="Preparar para a conversa com este lead"
                   aria-label="Preparar conversa com este lead"
                 >
@@ -1046,8 +1046,8 @@ export const DealDetailModal: React.FC<DealDetailModalProps> = ({ dealId, isOpen
                       )}
                     </div>
 
-                    <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-sm">
+                    <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-xl overflow-x-auto">
+                      <table className="w-full min-w-[30rem] md:min-w-0 text-left text-sm">
                         <thead className="bg-slate-50 dark:bg-black/20 border-b border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 font-medium">
                           <tr>
                             <th className="px-4 py-3">Item</th>

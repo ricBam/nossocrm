@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Phone, Users, Mail, CheckSquare } from 'lucide-react';
 import { Activity, Deal } from '@/types';
+import { useIsBelowMd } from '../hooks/useIsBelowMd';
 
 interface ActivitiesCalendarProps {
     activities: Activity[];
@@ -13,6 +14,14 @@ interface ActivitiesCalendarProps {
 
 const HOURS = Array.from({ length: 10 }, (_, i) => i + 9); // 9:00 to 18:00
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** Cor sólida do ícone por tipo na lista do dia (mobile). */
+const MOBILE_ICON_BG: Partial<Record<Activity['type'], string>> = {
+    CALL: 'bg-blue-500',
+    MEETING: 'bg-purple-500',
+    EMAIL: 'bg-green-500',
+    TASK: 'bg-orange-500',
+};
 
 /**
  * Componente React `ActivitiesCalendar`.
@@ -63,8 +72,14 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
         setCurrentDate(newDate);
     };
 
+    const isBelowMd = useIsBelowMd();
+    // Mobile (< md): dia da semana selecionado na faixa de dias (0 = Dom).
+    const [selectedWeekday, setSelectedWeekday] = useState(() => currentDate.getDay());
+
     const goToToday = () => {
-        setCurrentDate(new Date());
+        const today = new Date();
+        setCurrentDate(today);
+        setSelectedWeekday(today.getDay());
     };
 
     const getActivityIcon = (type: Activity['type']) => {
@@ -117,27 +132,45 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
         return map;
     }, [deals]);
 
+    // Mobile: atividades do dia inteiro (não só 9h–18h da grade), ordenadas por horário.
+    const activitiesByDay = useMemo(() => {
+        const map = new Map<string, Activity[]>();
+        for (const a of activities) {
+            const d = new Date(a.date);
+            const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            const list = map.get(key);
+            if (list) list.push(a);
+            else map.set(key, [a]);
+        }
+        for (const list of map.values()) {
+            list.sort((x, y) => new Date(x.date).getTime() - new Date(y.date).getTime());
+        }
+        return map;
+    }, [activities]);
+
+    const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
     return (
         <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-xl">
             {/* Header */}
-            <div className="p-6 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50">
-                <div className="flex items-center gap-4">
-                    <h2 className="font-bold text-2xl text-slate-900 dark:text-white font-display">
+            <div className="p-3 md:p-6 border-b border-slate-200 dark:border-white/10 flex flex-wrap gap-2 justify-between items-center bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50">
+                <div className="flex min-w-0 items-center gap-2 md:gap-4">
+                    <h2 className="font-bold text-lg md:text-2xl text-slate-900 dark:text-white font-display capitalize md:normal-case">
                         {weekStart.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                     </h2>
                     <button
                         onClick={goToToday}
-                        className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 hover:scale-105"
+                        className="px-3 md:px-4 py-2 text-sm font-bold bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 hover:scale-105"
                     >
                         <CalendarIcon size={14} />
                         Hoje
                     </button>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={prevWeek} className="p-3 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-all hover:scale-110">
+                <div className="flex gap-1 md:gap-2">
+                    <button onClick={prevWeek} aria-label="Semana anterior" className="p-2.5 md:p-3 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-all hover:scale-110">
                         <ChevronLeft size={20} className="text-slate-600 dark:text-slate-400" />
                     </button>
-                    <button onClick={nextWeek} className="p-3 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-all hover:scale-110">
+                    <button onClick={nextWeek} aria-label="Próxima semana" className="p-2.5 md:p-3 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-all hover:scale-110">
                         <ChevronRight size={20} className="text-slate-600 dark:text-slate-400" />
                     </button>
                 </div>
@@ -154,6 +187,93 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
               scroll vertical interno desnecessário; o `min-w` cai para o mínimo
               que ainda mantém as colunas legíveis em telas bem estreitas.
             */}
+            {isBelowMd ? (
+                <div>
+                    {/* Mobile: faixa de dias da semana + lista do dia selecionado */}
+                    <div className="grid grid-cols-7 gap-1 p-2 border-b border-slate-200 dark:border-white/10" role="group" aria-label="Dias da semana">
+                        {weekDays.map((date, i) => {
+                            const isSelected = selectedWeekday === i;
+                            const hasActivities = (activitiesByDay.get(dayKey(date))?.length ?? 0) > 0;
+                            return (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setSelectedWeekday(i)}
+                                    aria-pressed={isSelected}
+                                    aria-label={date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                    className={`flex flex-col items-center rounded-xl py-2 transition-colors ${isSelected
+                                        ? 'bg-primary-600 text-white'
+                                        : isToday(date)
+                                            ? 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300'
+                                            : 'text-slate-600 dark:text-slate-300'
+                                        }`}
+                                >
+                                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-80">{DAYS_OF_WEEK[date.getDay()]}</span>
+                                    <span className="text-base font-black font-display leading-tight">{date.getDate()}</span>
+                                    <span
+                                        aria-hidden="true"
+                                        className={`mt-0.5 h-1 w-1 rounded-full ${hasActivities ? (isSelected ? 'bg-white' : 'bg-primary-500') : 'bg-transparent'}`}
+                                    />
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {(() => {
+                        const selectedDate = weekDays[selectedWeekday] ?? weekDays[0];
+                        const dayActivities = activitiesByDay.get(dayKey(selectedDate)) ?? [];
+                        if (dayActivities.length === 0) {
+                            return (
+                                <p className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                                    Nenhuma atividade neste dia.
+                                </p>
+                            );
+                        }
+                        return (
+                            <ul className="space-y-2 p-3">
+                                {dayActivities.map(activity => (
+                                    <li key={activity.id}>
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => onView(activity)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    onView(activity);
+                                                }
+                                            }}
+                                            className={`flex items-start gap-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card p-3 cursor-pointer ${activity.completed ? 'opacity-60' : ''}`}
+                                        >
+                                            <div className={`shrink-0 rounded-lg p-1.5 ${MOBILE_ICON_BG[activity.type] ?? 'bg-slate-500'}`}>
+                                                {getActivityIcon(activity.type)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                                    {new Date(activity.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                    {isOverdue(activity) && (
+                                                        <span className="text-[10px] px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 rounded-full">
+                                                            ATRASADO
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className={`break-words font-semibold text-slate-900 dark:text-white ${activity.completed ? 'line-through' : ''}`}>
+                                                    {activity.title}
+                                                </div>
+                                                {activity.dealId && dealTitleById.get(activity.dealId) && (
+                                                    <div className="truncate text-xs text-primary-600 dark:text-primary-400">
+                                                        {dealTitleById.get(activity.dealId)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        );
+                    })()}
+                </div>
+            ) : (
             <div className="overflow-x-auto">
                 <div className="min-w-[640px]">
                     {/* Day Headers */}
@@ -259,6 +379,7 @@ export const ActivitiesCalendar: React.FC<ActivitiesCalendarProps> = ({
                     ))}
                 </div>
             </div>
+            )}
         </div>
     );
 };

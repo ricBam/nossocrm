@@ -67,9 +67,9 @@ const CofrinhosPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">Cofrinhos</h1>
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">Cofrinhos</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Reservas de dinheiro com metas.</p>
         </div>
         <button

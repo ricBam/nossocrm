@@ -104,33 +104,33 @@ const DashboardPage: React.FC = () => {
   const revenueChangeInfo = formatChange(changes.revenue);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] space-y-4">
-      <div className="flex justify-between items-center shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+    <div className="flex flex-col md:h-[calc(100vh-7rem)] space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
             Visão Geral
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             O pulso do seu negócio em tempo real.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <select
             value={selectedBoardId}
             onChange={(e) => setSelectedBoardId(e.target.value)}
             aria-label="Selecionar Pipeline de Vendas"
-            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="min-w-0 flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             {boards.map(board => (
               <option key={board.id} value={board.id}>{board.name}</option>
             ))}
           </select>
 
-          <PeriodFilterSelect value={period} onChange={setPeriod} />
+          <PeriodFilterSelect value={period} onChange={setPeriod} className="min-w-0 flex-1 sm:flex-none" />
 
           <button
             onClick={() => setShowPipelineAlerts(true)}
-            className={`p-2 rounded-lg border transition-colors relative ${(riskyCount > 0 || stagnantDealsCount > 0)
+            className={`shrink-0 p-2 rounded-lg border transition-colors relative ${(riskyCount > 0 || stagnantDealsCount > 0)
               ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30 text-amber-600 dark:text-amber-400'
               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700'
               }`}
@@ -234,7 +234,7 @@ const DashboardPage: React.FC = () => {
                 title="Churn"
               ></div>
             </div>
-            <div className="flex justify-between mt-2 text-xs text-slate-500">
+            <div className="flex flex-wrap justify-between gap-x-2 gap-y-1 mt-2 text-xs text-slate-500">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-green-500"></div> Ativos (
                 {activeContacts.length})
@@ -295,9 +295,9 @@ const DashboardPage: React.FC = () => {
       <AIMetricsSection />
 
       {/* Auto-Resize Bottom Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[300px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:flex-1 md:min-h-[300px]">
         {/* Funnel */}
-        <div className="glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col h-full">
+        <div className="glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col h-72 md:h-full">
           <div className="flex justify-between items-center mb-2 shrink-0">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display">
               Funil
@@ -313,7 +313,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Activity Feed - Expanded */}
-        <div className="lg:col-span-2 glass flex flex-col rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden h-full">
+        <div className="lg:col-span-2 glass flex flex-col rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden max-h-[28rem] md:max-h-none md:h-full">
           <div className="p-5 border-b border-slate-100 dark:border-white/5 bg-white/50 dark:bg-slate-900/50 rounded-t-xl backdrop-blur-sm z-10 shrink-0">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display">

@@ -301,8 +301,8 @@ export const ProfilePage: React.FC = () => {
     return (
         <div className="max-w-2xl mx-auto pb-10">
             {/* Header */}
-            <div className="mb-10">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+            <div className="mb-6 sm:mb-10">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
                     Meu Perfil
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-2">
@@ -322,11 +322,11 @@ export const ProfilePage: React.FC = () => {
             )}
 
             {/* Profile Card */}
-            <div className="bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl p-8 mb-6">
-                <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center gap-6">
+            <div className="bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-8 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4 sm:gap-6 min-w-0">
                         {/* Avatar Grande com Upload */}
-                        <div className="relative group">
+                        <div className="relative group shrink-0">
                             {avatarUrl ? (
                                 <Image
                                     src={avatarUrl}
@@ -342,14 +342,19 @@ export const ProfilePage: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Overlay de upload */}
-                            <div className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            {/* Overlay de upload — no mobile (sem hover) o botão fica sempre visível no canto */}
+                            <div className="absolute inset-0 rounded-2xl flex items-end justify-end p-1 md:p-0 md:items-center md:justify-center md:bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                 {uploadingAvatar ? (
-                                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                    <span className="inline-flex p-1.5 md:p-0 rounded-full bg-black/50 md:bg-transparent">
+                                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 text-white animate-spin" />
+                                    </span>
                                 ) : (
                                     <button
+                                        type="button"
                                         onClick={triggerAvatarPicker}
-                                        className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+                                        aria-label="Alterar foto"
+                                        title="Alterar foto"
+                                        className="p-1.5 md:p-2 bg-black/60 md:bg-white/20 rounded-full shadow-lg md:shadow-none hover:bg-white/30 transition-colors"
                                     >
                                         <Camera className="w-5 h-5 text-white" />
                                     </button>
@@ -360,7 +365,7 @@ export const ProfilePage: React.FC = () => {
                             {avatarUrl && !uploadingAvatar && (
                                 <button
                                     onClick={handleRemoveAvatar}
-                                    className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
+                                    className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full text-white opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
                                     title="Remover foto"
                                 >
                                     <X className="w-3 h-3" />
@@ -378,12 +383,12 @@ export const ProfilePage: React.FC = () => {
                         </div>
 
                         {/* Info resumida */}
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                        <div className="min-w-0">
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white break-words">
                                 {displayName}
                             </h2>
                             {fullName && (
-                                <p className="text-slate-500 dark:text-slate-400 mt-0.5">
+                                <p className="text-slate-500 dark:text-slate-400 mt-0.5 break-words">
                                     {fullName}
                                 </p>
                             )}
@@ -402,7 +407,7 @@ export const ProfilePage: React.FC = () => {
                     {!isEditingProfile && (
                         <button
                             onClick={() => setIsEditingProfile(true)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors"
+                            className="self-start shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors"
                         >
                             <Pencil className="w-4 h-4" />
                             Editar
@@ -413,7 +418,7 @@ export const ProfilePage: React.FC = () => {
                 {/* Modo de edição */}
                 {isEditingProfile ? (
                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Nome
@@ -505,15 +510,15 @@ export const ProfilePage: React.FC = () => {
                 ) : (
                     /* Modo de visualização */
                     <div className="grid gap-4 pt-4 border-t border-slate-100 dark:border-white/5">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-sm">
-                                <Mail className="w-4 h-4 text-slate-400" />
-                                <span className="text-slate-600 dark:text-slate-300">{profile?.email}</span>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 text-sm min-w-0">
+                                <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span className="text-slate-600 dark:text-slate-300 break-all">{profile?.email}</span>
                             </div>
                             {!isChangingEmail && (
                                 <button
                                     onClick={() => setIsChangingEmail(true)}
-                                    className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium"
+                                    className="shrink-0 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium"
                                 >
                                     Alterar
                                 </button>
@@ -573,9 +578,9 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             {/* Security Section */}
-            <div className="bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
+            <div className="bg-white dark:bg-white/3 border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                    <div className="min-w-0">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                             <Key className="w-5 h-5 text-slate-400" />
                             Segurança
@@ -587,7 +592,7 @@ export const ProfilePage: React.FC = () => {
                     {!isChangingPassword && (
                         <button
                             onClick={() => setIsChangingPassword(true)}
-                            className="px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                            className="self-start sm:self-auto shrink-0 px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
                         >
                             Alterar Senha
                         </button>

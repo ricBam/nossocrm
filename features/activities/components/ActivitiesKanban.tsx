@@ -82,7 +82,7 @@ export const ActivitiesKanban: React.FC<ActivitiesKanbanProps> = ({
       // de `ActivitiesPage` (`p-8 max-w-400 mx-auto`), sem altura de viewport
       // reservada como a página de negócios (`PipelineView`, `h-full`) tem —
       // `h-full` aqui colapsaria para 0px sem um ancestral com altura fixa.
-      className="flex gap-4 min-h-[70vh] overflow-x-auto pb-2 w-full"
+      className="flex gap-3 sm:gap-4 min-h-[60vh] sm:min-h-[70vh] overflow-x-auto pb-2 w-full snap-x snap-mandatory sm:snap-none"
     >
       {KANBAN_COLUMNS.map((column) => {
         const columnActivities = activitiesByStatus.get(column.key) ?? [];
@@ -101,7 +101,7 @@ export const ActivitiesKanban: React.FC<ActivitiesKanbanProps> = ({
             onDragEnter={() => setDragOverColumn(column.key)}
             onDragLeave={() => setDragOverColumn(null)}
             onDrop={(e) => handleDrop(e, column.key)}
-            className={`min-w-[18rem] flex-1 flex flex-col rounded-xl border-2 transition-all duration-200 ${
+            className={`min-w-[85vw] sm:min-w-[18rem] snap-start flex-1 flex flex-col rounded-xl border-2 transition-all duration-200 ${
               isOver
                 ? 'border-primary-500 bg-primary-50/20 dark:bg-primary-500/10 scale-[1.01]'
                 : 'border-slate-200/50 dark:border-white/10'

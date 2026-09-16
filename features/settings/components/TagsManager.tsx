@@ -43,8 +43,8 @@ export const TagsManager: React.FC<TagsManagerProps> = ({
       </p>
 
       <div className="p-4 rounded-xl border bg-slate-50 dark:bg-black/20 border-slate-200 dark:border-white/5 mb-6">
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="flex-1 min-w-0">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Tag</label>
             <input
               type="text"
@@ -76,7 +76,7 @@ export const TagsManager: React.FC<TagsManagerProps> = ({
               size="icon"
               onClick={() => onRemoveTag(tag)}
               title="Remover tag"
-              className="opacity-0 group-hover:opacity-100 h-6 w-6 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="opacity-100 md:opacity-0 md:group-hover:opacity-100 h-6 w-6 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <X size={14} />
             </Button>

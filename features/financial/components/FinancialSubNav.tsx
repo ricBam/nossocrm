@@ -15,7 +15,7 @@ export const FinancialSubNav: React.FC = () => {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 border-b border-slate-200 dark:border-white/5" aria-label="Navegação do Financeiro">
+    <nav className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-slate-200 dark:border-white/5" aria-label="Navegação do Financeiro">
       {TABS.map(tab => {
         const isActive = pathname === tab.href;
         return (
@@ -23,7 +23,7 @@ export const FinancialSubNav: React.FC = () => {
             key={tab.href}
             href={tab.href}
             className={cn(
-              'px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors',
+              'shrink-0 whitespace-nowrap px-4 py-2 text-sm font-bold border-b-2 -mb-px transition-colors',
               isActive
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'

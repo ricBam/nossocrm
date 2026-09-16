@@ -120,6 +120,8 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 }) => {
     const [showContactInfo, setShowContactInfo] = useState(false);
     const [activeTab, setActiveTab] = useState('chat');
+    // Mobile (< lg): as 3 colunas viram abas para o conteúdo central ficar utilizável.
+    const [mobilePane, setMobilePane] = useState<'summary' | 'activities' | 'workspace'>('activities');
     const [note, setNote] = useState('');
     const [copiedScript, setCopiedScript] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -751,31 +753,39 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
     return (
         <>
-            <div className={`${isExpanded ? 'fixed inset-0 w-screen h-screen' : ''} flex flex-col bg-slate-950 ${className || ''}`}>
+            <div className={`${isExpanded ? 'fixed inset-0 w-screen h-dvh pt-[var(--app-safe-area-top,0px)] pb-[var(--app-safe-area-bottom,0px)]' : ''} flex flex-col bg-slate-950 ${className || ''}`}>
                 {/* === HEADER with Pipeline Progress === */}
                 <header className="shrink-0 border-b border-dark-border">
                     {/* Top Row: Title + Board Name (center) + Value */}
-                    <div className="flex items-center justify-between px-6 py-3">
-                        <div>
-                            <h1 className="text-lg font-semibold text-white tracking-tight">
+                    <div className="flex items-center justify-between gap-3 px-4 lg:px-6 py-3">
+                        <div className="min-w-0 flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="lg:hidden shrink-0 -ml-2 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                                aria-label="Fechar"
+                            >
+                                <X size={20} />
+                            </button>
+                            <h1 className="min-w-0 truncate lg:whitespace-normal lg:overflow-visible text-base lg:text-lg font-semibold text-white tracking-tight">
                                 {deal.title} <span className="text-slate-500 font-normal">|</span> <span className="text-slate-400 font-normal">{(deal as any).companyName || 'Empresa'}</span>
                             </h1>
                         </div>
-                        <div className="absolute left-1/2 -translate-x-1/2">
+                        <div className="hidden lg:block absolute left-1/2 -translate-x-1/2">
                             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
                                 {board?.name || 'Board'}
                             </span>
                         </div>
-                        <div className="text-right">
-                            <p className="text-lg font-bold text-emerald-400 font-mono tracking-tight">
+                        <div className="text-right shrink-0">
+                            <p className="text-base lg:text-lg font-bold text-emerald-400 font-mono tracking-tight">
                                 R$ {deal.value?.toLocaleString('pt-BR') || '0'}
                             </p>
                         </div>
                     </div>
 
                     {/* Pipeline Progress - The Star of the Show */}
-                    <div className="px-6 pb-4 pt-1">
-                        <div className="flex items-center">
+                    <div className="px-4 pt-2 overflow-x-auto lg:overflow-visible lg:px-6 pb-4 lg:pt-1">
+                        <div className="flex items-center w-max min-w-full lg:w-auto">
                             {board?.stages.map((stage, idx) => {
                                 const isActive = idx === currentIdx;
                                 const isPassed = idx < currentIdx;
@@ -850,7 +860,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
                                         {/* Connecting Line */}
                                         {!isLast && (
-                                            <div className="flex-1 mx-3 relative h-0.5 -mt-6">
+                                            <div className="flex-1 min-w-6 lg:min-w-0 mx-2 lg:mx-3 relative h-0.5 -mt-6">
                                                 <div className="absolute inset-0 bg-slate-800 rounded-full" />
                                                 <div
                                                     className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
@@ -869,13 +879,36 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                     </div>
                 </header>
 
+                {/* Mobile pane switcher (< lg) */}
+                <div className="lg:hidden shrink-0 flex border-b border-white/5" role="tablist" aria-label="Seções do cockpit">
+                    {([
+                        ['summary', 'Resumo'],
+                        ['activities', 'Atividades'],
+                        ['workspace', 'Workspace'],
+                    ] as const).map(([pane, label]) => (
+                        <button
+                            key={pane}
+                            type="button"
+                            role="tab"
+                            aria-selected={mobilePane === pane}
+                            onClick={() => setMobilePane(pane)}
+                            className={`relative flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${mobilePane === pane ? 'text-primary-400' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            {label}
+                            {mobilePane === pane && (
+                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
+                            )}
+                        </button>
+                    ))}
+                </div>
+
                 {/* === BODY === */}
                 <div className="flex-1 flex min-h-0 overflow-hidden">
 
                     {/* LEFT: Contact */}
-                    <aside className="w-[400px] shrink-0 border-r border-white/5 flex flex-col">
+                    <aside className={`${mobilePane === 'summary' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[400px] shrink-0 lg:border-r border-white/5 flex-col min-h-0 overflow-y-auto lg:overflow-visible`}>
 
-                        <div className="p-6 border-b border-white/5">
+                        <div className="p-4 lg:p-6 border-b border-white/5">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     {isAILoading ? (
@@ -939,7 +972,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                 <div className={`p-3 rounded-xl shrink-0 ${nextBestAction.urgency === 'high' ? 'bg-red-500/15' : nextBestAction.urgency === 'medium' ? 'bg-yellow-500/15' : 'bg-primary-500/15'}`}>
                                     <nextBestAction.icon size={24} className={`${nextBestAction.urgency === 'high' ? 'text-red-400' : nextBestAction.urgency === 'medium' ? 'text-yellow-400' : 'text-primary-400'}`} />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                     <p className="text-base font-semibold text-slate-100 leading-snug mb-1">
                                         {nextBestAction.action}
                                     </p>
@@ -950,7 +983,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                             </div>
 
                             {/* Action Icons Bar */}
-                            <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                                 <span className="text-[10px] text-slate-600 uppercase tracking-wider">Executar como:</span>
                                 <div className="flex items-center gap-1">
                                     {[
@@ -1000,7 +1033,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
                         {/* Stats - Single section */}
                         <div className="p-4 border-b border-dark-border">
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="text-center">
                                     <span className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold block">Dias</span>
                                     <p className={`text-lg font-mono font-bold ${daysInStage > 7 ? 'text-orange-400' : 'text-slate-300'}`}>{daysInStage}</p>
@@ -1027,7 +1060,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
                                             <h4 className="text-sm font-semibold text-white truncate">{contact.name}</h4>
                                             {contact.role && (
                                                 <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">{contact.role}</span>
@@ -1265,12 +1298,12 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                     </aside>
 
                     {/* RIGHT: Split View (Timeline + Workspace) */}
-                    <main className="flex-1 flex min-w-0 bg-slate-900/10">
+                    <main className={`${mobilePane === 'summary' ? 'hidden' : 'flex'} lg:flex flex-1 min-w-0 bg-slate-900/10`}>
 
                         {/* COL 1: Timeline & Interaction (Flexible Width) */}
-                        <div className="flex-1 flex flex-col min-w-0 border-r border-dark-border">
+                        <div className={`${mobilePane === 'activities' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col min-w-0 lg:border-r border-dark-border`}>
                             {/* Header - Simple */}
-                            <div className="shrink-0 h-12 flex items-center justify-between px-6 border-b border-white/5">
+                            <div className="shrink-0 h-12 flex items-center justify-between px-4 lg:px-6 border-b border-white/5">
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                                     Atividades
                                 </h3>
@@ -1285,7 +1318,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                             </div>
 
                             {/* Activity List */}
-                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 p-6">
+                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 p-2 lg:p-6">
                                 {activities.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center p-12 text-center h-full">
                                         <div className="w-12 h-12 bg-slate-800/50 rounded-xl flex items-center justify-center mb-4 border border-slate-700/50">
@@ -1314,7 +1347,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                             return (
                                                 <div
                                                     key={activity.id}
-                                                    className="relative pl-[54px] pr-6 py-4 group hover:bg-white/[0.02] transition-colors border-b border-white/5"
+                                                    className="relative pl-[54px] pr-3 lg:pr-6 py-4 group hover:bg-white/[0.02] transition-colors border-b border-white/5"
                                                 >
                                                     {/* Timeline Node */}
                                                     <div className={`absolute left-[18px] top-[18px] w-[20px] h-[20px] rounded-full flex items-center justify-center z-10 
@@ -1328,9 +1361,9 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                         <Icon size={10} strokeWidth={2.5} />
                                                     </div>
 
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="flex flex-col gap-1 flex-1">
-                                                            <div className="flex items-center gap-2">
+                                                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-1 lg:gap-3">
+                                                        <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                                            <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
                                                                 {/* Activity Type Badge */}
                                                                 {(() => {
                                                                     // For STATUS_CHANGE, use gray
@@ -1397,7 +1430,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                         const hexColor = tailwindToHex[matchingStage?.color || ''] || '#64748b';
 
                                                                         return (
-                                                                            <span className="flex items-center gap-2">
+                                                                            <span className="flex flex-wrap items-center gap-2">
                                                                                 Moveu para
                                                                                 <span
                                                                                     className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border"
@@ -1420,7 +1453,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                                 </p>
                                                             )}
                                                         </div>
-                                                        <span className="text-[11px] text-slate-600 font-mono shrink-0 self-center">
+                                                        <span className="text-[11px] text-slate-600 font-mono shrink-0 lg:self-center">
                                                             {new Date(activity.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} - {new Date(activity.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
@@ -1484,7 +1517,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                         value={note}
                                         onChange={(e) => setNote(e.target.value)}
                                         placeholder="Escreva..."
-                                        className="w-full min-h-[120px] bg-slate-900/50 border border-slate-600 ring-1 ring-slate-500/30 focus:border-primary-500 focus:ring-primary-500/40 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all resize-none"
+                                        className="w-full min-h-[96px] lg:min-h-[120px] bg-slate-900/50 border border-slate-600 ring-1 ring-slate-500/30 focus:border-primary-500 focus:ring-primary-500/40 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none transition-all resize-none"
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && e.metaKey && note.trim()) {
                                                 onAddActivity({
@@ -1499,7 +1532,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                         }}
                                     />
                                     <div className="absolute right-2 bottom-2 flex items-center gap-2">
-                                        <span className="text-[10px] text-slate-700 border border-slate-800 rounded px-1.5 py-0.5">
+                                        <span className="hidden md:inline text-[10px] text-slate-700 border border-slate-800 rounded px-1.5 py-0.5">
                                             ⌘ + Enter
                                         </span>
                                     </div>
@@ -1508,14 +1541,14 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                         </div>
 
                         {/* COL 2: Workspace (Fixed Width) */}
-                        <div className="w-[400px] flex flex-col min-h-0 bg-slate-900/20 border-l border-white/5 relative">
+                        <div className={`${mobilePane === 'workspace' ? 'flex' : 'hidden'} lg:flex w-full lg:w-[400px] flex-col min-h-0 bg-slate-900/20 lg:border-l border-white/5 relative`}>
                             {/* Workspace Tabs */}
-                            <div className="shrink-0 flex items-center px-4 h-14 border-b border-white/5 gap-4">
+                            <div className="shrink-0 flex items-center px-4 h-14 border-b border-white/5 gap-4 overflow-x-auto lg:overflow-visible">
                                 {['chat', 'notas', 'scripts', 'files'].map((tab) => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`relative h-full flex items-center justify-center text-xs font-semibold uppercase tracking-wider transition-all ${activeTab === tab
+                                        className={`relative h-full shrink-0 flex items-center justify-center text-xs font-semibold uppercase tracking-wider transition-all ${activeTab === tab
                                             ? 'text-primary-400 shadow-[0_4px_20px_-10px_rgba(var(--primary-500),0.3)]'
                                             : 'text-slate-500 hover:text-slate-300'
                                             }`}
@@ -1531,7 +1564,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                             {/* Global Notes (Persistent) */}
                             {/* Notes - Real persistence */}
                             {activeTab === 'notas' && (
-                                <div className="flex-1 flex flex-col bg-[#1A1A1A]">
+                                <div className="flex-1 min-h-0 overflow-y-auto lg:min-h-auto lg:overflow-visible flex flex-col bg-[#1A1A1A]">
                                     <div className="p-4 border-b border-white/5 flex items-center justify-between">
                                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Notas do Deal</span>
                                         {createNote.isPending && (
@@ -1555,7 +1588,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                             }}
                                         />
                                         <div className="flex justify-between items-center mt-2">
-                                            <span className="text-[10px] text-slate-600">⌘+Enter para salvar</span>
+                                            <span className="text-[10px] text-slate-600"><span className="hidden md:inline">⌘+Enter para salvar</span></span>
                                             <button
                                                 onClick={handleNoteSubmit}
                                                 disabled={!note.trim() || createNote.isPending}
@@ -1622,7 +1655,7 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                             <Sparkles size={14} className="text-primary-400" />
                                             <span className="text-xs font-medium text-white">Gerar Script com IA</span>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="grid grid-cols-2 sm:flex gap-2">
                                             {(['followup', 'closing', 'objection', 'rescue'] as ScriptCategory[]).map((type) => (
                                                 <button
                                                     key={type}
@@ -1662,8 +1695,8 @@ export const FocusContextPanel: React.FC<FocusContextPanelProps> = ({
                                                         setNote(applyVariables(script.template, { nome: contact?.name?.split(' ')[0] || 'Cliente' }));
                                                     }}
                                                 >
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
+                                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                                        <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 min-w-0">
                                                             <div className={`px-2 py-0.5 rounded text-[10px] font-medium bg-${categoryInfo.color}-500/20 text-${categoryInfo.color}-400`}>
                                                                 {categoryInfo.label}
                                                             </div>

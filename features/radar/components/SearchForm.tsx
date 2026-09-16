@@ -124,7 +124,7 @@ export function SearchForm({
                 <legend className="px-1 text-xs text-slate-500 dark:text-slate-400">
                     Filtros de descoberta — removem da lista quem não bate (empresa desqualificada continua visível)
                 </legend>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                     <Label htmlFor="radar-sem-site" className="text-sm font-normal">Sem site</Label>
                     <Switch
                         id="radar-sem-site"
@@ -132,7 +132,7 @@ export function SearchForm({
                         onCheckedChange={(v) => onFiltersChange({ ...filters, semSite: v })}
                     />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                     <Label htmlFor="radar-sem-social" className="text-sm font-normal">Sem rede social</Label>
                     <Switch
                         id="radar-sem-social"
@@ -140,7 +140,7 @@ export function SearchForm({
                         onCheckedChange={(v) => onFiltersChange({ ...filters, semRedeSocial: v })}
                     />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <div className="space-y-1">
                         <Label htmlFor="radar-nota-min" className="text-xs">Nota mín.</Label>
                         <Input
@@ -157,7 +157,7 @@ export function SearchForm({
                             onChange={(e) => onFiltersChange({ ...filters, notaMax: e.target.value === '' ? null : Number(e.target.value) })}
                         />
                     </div>
-                    <div className="space-y-1">
+                    <div className="col-span-2 sm:col-span-1 space-y-1">
                         <Label htmlFor="radar-min-aval" className="text-xs">Mín. aval.</Label>
                         <Input
                             id="radar-min-aval" type="number" min={0}

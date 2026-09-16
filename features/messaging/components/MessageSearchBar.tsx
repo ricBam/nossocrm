@@ -54,13 +54,14 @@ export function MessageSearchBar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar nas mensagens..."
-          className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
+          className="flex-1 min-w-0 bg-transparent text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
         />
         {isLoading && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
         <button
           type="button"
           onClick={onClose}
-          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded"
+          className="p-2.5 md:p-1 -mr-1.5 md:mr-0 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded"
+          aria-label="Fechar busca"
         >
           <X className="w-4 h-4" />
         </button>
@@ -77,10 +78,10 @@ export function MessageSearchBar({
               className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 truncate min-w-0">
                   {msg.sender_name || (msg.direction === 'inbound' ? 'Contato' : 'Você')}
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 flex-shrink-0">
                   {format(new Date(msg.created_at), "d MMM, HH:mm", { locale: ptBR })}
                 </span>
               </div>

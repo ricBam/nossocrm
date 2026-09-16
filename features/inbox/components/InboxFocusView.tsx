@@ -381,7 +381,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
   const hasResolvedContext = !!(contextData?.deal || contextData?.contact);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] py-8 animate-fade-in">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] py-4 md:py-8 animate-fade-in">
       {/* Badge de status */}
       {isOverdue && (
         <div className="mb-4 px-4 py-1.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-full text-sm font-bold uppercase tracking-wider">
@@ -396,7 +396,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
 
       {/* Horário grande (se for reunião) */}
       {isMeeting && (
-        <div className="text-6xl font-bold text-slate-900 dark:text-white mb-4 font-display">
+        <div className="text-5xl md:text-6xl font-bold text-slate-900 dark:text-white mb-4 font-display">
           {timeString}
         </div>
       )}
@@ -409,7 +409,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
       )}
 
       {/* Título */}
-      <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white text-center mb-3 max-w-lg">
+      <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white text-center mb-3 max-w-lg break-words">
         {title}
       </h1>
 
@@ -422,9 +422,9 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
 
       {/* Contexto (Deal/Empresa) */}
       {context && (
-        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 mb-2">
-          <Building2 size={16} className="text-slate-400" />
-          <span>{context}</span>
+        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 mb-2 max-w-full">
+          <Building2 size={16} className="text-slate-400 shrink-0" />
+          <span className="truncate">{context}</span>
         </div>
       )}
 
@@ -451,7 +451,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
 
             <Maximize2 size={14} className="relative z-10" />
             <span className="relative z-10">{hasResolvedContext ? 'Ver detalhes' : 'Vincular contexto'}</span>
-            <kbd className="hidden group-hover:inline-flex h-5 items-center gap-1 rounded border border-yellow-500/20 bg-yellow-500/10 px-1.5 font-mono text-[10px] font-medium text-yellow-500/50 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out translate-x-1 group-hover:translate-x-0 ml-2">
+            <kbd className="hidden md:group-hover:inline-flex h-5 items-center gap-1 rounded border border-yellow-500/20 bg-yellow-500/10 px-1.5 font-mono text-[10px] font-medium text-yellow-500/50 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out translate-x-1 group-hover:translate-x-0 ml-2">
               SPACE
             </kbd>
           </button>
@@ -459,37 +459,37 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
       )}
 
       {/* Ações */}
-      <div className="flex items-center gap-4 mt-8" role="group" aria-label="Ações">
+      <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 mt-6 md:mt-8 w-full md:w-auto" role="group" aria-label="Ações">
         <button
           onClick={onSnooze}
-          className="group flex items-center gap-3 px-6 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-medium border border-transparent hover:border-slate-300 dark:hover:border-white/10"
+          className="group flex flex-1 md:flex-none justify-center items-center gap-2 md:gap-3 px-4 md:px-6 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-medium border border-transparent hover:border-slate-300 dark:hover:border-white/10"
         >
           <Clock size={18} aria-hidden="true" className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200" />
           <span>Adiar</span>
-          <kbd className="hidden group-hover:inline-flex h-5 items-center justify-center rounded border border-slate-300 dark:border-white/10 bg-slate-200 dark:bg-white/5 px-1.5 font-mono text-[10px] uppercase text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-all">
+          <kbd className="hidden md:group-hover:inline-flex h-5 items-center justify-center rounded border border-slate-300 dark:border-white/10 bg-slate-200 dark:bg-white/5 px-1.5 font-mono text-[10px] uppercase text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-all">
             A
           </kbd>
         </button>
 
         <button
           onClick={onDone}
-          className="group flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] transition-all duration-300 font-bold text-lg border-t border-white/20 ring-1 ring-emerald-600/50"
+          className="group order-first md:order-none basis-full md:basis-auto flex justify-center items-center gap-3 px-6 md:px-8 py-4 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] transition-all duration-300 font-bold text-lg border-t border-white/20 ring-1 ring-emerald-600/50"
         >
           <div className="p-1 bg-white/20 rounded-full">
             <Check size={20} aria-hidden="true" strokeWidth={3} />
           </div>
           <span className="text-shadow-sm">Feito</span>
-          <kbd className="ml-1 inline-flex h-6 items-center justify-center rounded bg-black/10 px-2 font-sans text-xs text-white/70 font-semibold border border-white/10">
+          <kbd className="ml-1 hidden md:inline-flex h-6 items-center justify-center rounded bg-black/10 px-2 font-sans text-xs text-white/70 font-semibold border border-white/10">
             ⏎
           </kbd>
         </button>
 
         <button
           onClick={onSkip}
-          className="group flex items-center gap-3 px-6 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-medium border border-transparent hover:border-slate-300 dark:hover:border-white/10"
+          className="group flex flex-1 md:flex-none justify-center items-center gap-2 md:gap-3 px-4 md:px-6 py-3 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-all font-medium border border-transparent hover:border-slate-300 dark:hover:border-white/10"
         >
           <span>Pular</span>
-          <kbd className="hidden group-hover:inline-flex h-5 items-center justify-center rounded border border-slate-300 dark:border-white/10 bg-slate-200 dark:bg-white/5 px-1.5 font-mono text-[10px] uppercase text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-all">
+          <kbd className="hidden md:group-hover:inline-flex h-5 items-center justify-center rounded border border-slate-300 dark:border-white/10 bg-slate-200 dark:bg-white/5 px-1.5 font-mono text-[10px] uppercase text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-all">
             P
           </kbd>
           <SkipForward size={18} aria-hidden="true" className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200" />
@@ -497,7 +497,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
       </div>
 
       {/* Navegação */}
-      <nav aria-label="Navegação entre itens" className="flex items-center gap-6 mt-12">
+      <nav aria-label="Navegação entre itens" className="flex items-center gap-4 md:gap-6 mt-8 md:mt-12">
         <button
           onClick={onPrev}
           disabled={currentIndex === 0}
@@ -578,14 +578,14 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
                 stiffness: 300,
                 damping: 30
               }}
-              className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(1rem+var(--app-safe-area-top,0px))] pb-[calc(1rem+var(--app-safe-area-bottom,0px))]"
               role="dialog"
               aria-modal="true"
               aria-label="Vincular contexto"
             >
-              <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 shadow-2xl p-5">
+              <div className="w-full max-w-xl max-h-full overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 shadow-2xl p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-sm font-semibold text-slate-900 dark:text-white">Vincular contexto</div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Esta atividade não tem deal/contato associado. Selecione um negócio para abrir o Cockpit.
@@ -593,7 +593,7 @@ export const InboxFocusView: React.FC<InboxFocusViewProps> = ({
                   </div>
                   <button
                     onClick={() => setShowContext(false)}
-                    className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                    className="shrink-0 -m-2 p-2 md:m-0 md:p-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                     aria-label="Fechar"
                   >
                     ×

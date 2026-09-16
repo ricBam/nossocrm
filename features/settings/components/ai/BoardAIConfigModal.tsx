@@ -242,7 +242,7 @@ function ContextStep({
         <Label className="text-sm font-semibold text-slate-800 dark:text-slate-100">
           Tom de comunicação
         </Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {TONE_OPTIONS.map((t) => (
             <button
               key={t.id}
@@ -595,7 +595,7 @@ function ActivateStep({ agentMode, onAgentModeChange, stages, goalStageId, onGoa
           Recomendamos começar em <strong>Observar</strong> para validar o comportamento antes de ativar respostas automáticas.
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => onAgentModeChange('observe')}
@@ -605,7 +605,7 @@ function ActivateStep({ agentMode, onAgentModeChange, stages, goalStageId, onGoa
                 : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
             }`}
           >
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <Eye className={`w-4 h-4 ${agentMode === 'observe' ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Observar</span>
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Recomendado</Badge>

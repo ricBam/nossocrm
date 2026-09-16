@@ -135,21 +135,21 @@ export const CallModal: React.FC<CallModalProps> = ({
     ] as const;
 
     return (
-        <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center">
+        <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center pt-[var(--app-safe-area-top,0px)] pb-[var(--app-safe-area-bottom,0px)]">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleDiscard} />
 
             {/* Modal */}
-            <div className="relative bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="relative bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden max-h-[90dvh] flex flex-col">
                 {/* Header */}
                 <div className="bg-linear-to-r from-yellow-500/10 to-orange-500/10 p-4 border-b border-slate-700/50 shrink-0">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                             <div className="p-2 bg-yellow-500/20 rounded-xl">
                                 <Phone size={20} className="text-yellow-400" />
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-white">{contactName}</h3>
+                            <div className="min-w-0">
+                                <h3 className="font-semibold text-white truncate">{contactName}</h3>
                                 <div className="mt-0.5 flex items-center gap-2">
                                     <p className="text-xs text-slate-400">{phone || ''}</p>
                                     {phone && (
@@ -179,7 +179,8 @@ export const CallModal: React.FC<CallModalProps> = ({
                         </div>
                         <button
                             onClick={handleDiscard}
-                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+                            className="shrink-0 p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+                            aria-label="Fechar"
                         >
                             <X size={18} />
                         </button>
@@ -187,7 +188,7 @@ export const CallModal: React.FC<CallModalProps> = ({
                 </div>
 
                 {/* Timer */}
-                <div className="flex items-center justify-center py-6 bg-slate-800/50 shrink-0">
+                <div className="flex items-center justify-center py-4 sm:py-6 px-4 bg-slate-800/50 shrink-0">
                     <div className="flex flex-col items-center gap-2 px-6 py-3 bg-slate-900 rounded-xl border border-slate-700/50">
                         <div className="flex items-center gap-3">
                             <Clock size={18} className="text-yellow-400" />

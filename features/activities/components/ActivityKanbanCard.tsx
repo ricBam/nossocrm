@@ -80,10 +80,11 @@ const ActivityKanbanCardComponent: React.FC<ActivityKanbanCardProps> = ({
             e.stopPropagation();
             onEdit(activity);
           }}
-          className="p-1 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+          className="p-2 -m-1 sm:p-1 sm:m-0 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          aria-label="Editar atividade"
           title="Editar"
         >
-          <Edit2 size={13} />
+          <Edit2 size={13} aria-hidden="true" />
         </button>
       </div>
 

@@ -216,7 +216,7 @@ function TemplatePickerModal({
   return (
     <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-3xl mx-4 rounded-2xl border border-white/10 bg-slate-950 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-3xl mx-4 rounded-2xl border border-white/10 bg-slate-950 shadow-2xl overflow-hidden max-h-[90dvh] overflow-y-auto sm:max-h-none sm:overflow-y-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-100 truncate">{title}</div>
@@ -268,7 +268,7 @@ function TemplatePickerModal({
               <span className="font-mono">{'{valor}'}</span>, <span className="font-mono">{'{produto}'}</span>
             </div>
 
-            <div className="h-105 overflow-auto rounded-2xl border border-white/10 bg-white/2">
+            <div className="h-[45dvh] sm:h-105 overflow-auto rounded-2xl border border-white/10 bg-white/2">
               {isLoading ? (
                 <div className="p-4 text-sm text-slate-400">Carregando scripts…</div>
               ) : filtered.length === 0 ? (
@@ -287,9 +287,9 @@ function TemplatePickerModal({
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
                               <span
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded ${scriptCategoryChipClass(info.color)}`}
+                                className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded ${scriptCategoryChipClass(info.color)}`}
                               >
                                 {info.label}
                               </span>
@@ -1392,7 +1392,7 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
 
   if (crmError) {
     return (
-      <div className="h-dvh bg-slate-950 text-slate-100 flex items-center justify-center p-8">
+      <div className="h-dvh bg-slate-950 text-slate-100 flex items-center justify-center p-4 md:p-8">
         <div className="max-w-xl w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Cockpit</div>
@@ -1423,8 +1423,8 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
 
   if (crmLoading && (!deals || deals.length === 0)) {
     return (
-      <div className="h-dvh bg-slate-950 text-slate-100 flex items-center justify-center p-8">
-        <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/3 p-6">
+      <div className="h-dvh bg-slate-950 text-slate-100 flex items-center justify-center p-4 md:p-8">
+        <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/3 p-4 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Cockpit</div>
             <div className="text-xs text-slate-400">Carregando…</div>
@@ -1442,8 +1442,8 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
 
   if (!selectedDeal || !selectedBoard) {
     return (
-      <div className="h-dvh bg-slate-950 text-slate-100 flex items-center justify-center p-8">
-        <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/3 p-6">
+      <div className="h-dvh bg-slate-950 text-slate-100 flex items-center justify-center p-4 md:p-8">
+        <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/3 p-4 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="text-lg font-semibold">Cockpit</div>
             <div className="text-xs text-slate-400">/deals/[dealId]/cockpit</div>
@@ -1482,9 +1482,9 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
   const phoneE164 = normalizePhoneE164(contact?.phone);
 
   return (
-    <div className="h-dvh overflow-hidden bg-slate-950 text-slate-100">
+    <div className="lg:h-dvh lg:overflow-hidden bg-slate-950 text-slate-100">
       {toast ? (
-        <div className="fixed right-6 top-6 z-50">
+        <div className="fixed left-4 right-4 top-[calc(1rem+var(--app-safe-area-top,0px))] z-50 flex justify-center md:left-auto md:right-6 md:top-6 md:block">
           <div
             className={
               toast.tone === 'success'
@@ -1503,13 +1503,13 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
       ) : null}
 
       {/* Top pipeline bar */}
-      <div className="sticky top-0 z-40 h-16 border-b border-white/5 bg-black/40 backdrop-blur">
-        <div className="flex h-16 w-full items-center px-6 2xl:px-10">
-          <div className="flex items-center justify-between gap-4">
+      <div className="sticky top-0 z-40 lg:h-16 border-b border-white/5 bg-black/40 backdrop-blur">
+        <div className="flex flex-col gap-3 py-3 lg:py-0 lg:flex-row lg:h-16 w-full lg:items-center px-3 md:px-6 2xl:px-10">
+          <div className="flex w-full lg:w-auto items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <select
-                  className="max-w-90 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 outline-none hover:bg-white/8 focus:ring-2 focus:ring-cyan-400/30"
+                  className="min-w-0 w-full sm:w-auto max-w-90 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 outline-none hover:bg-white/8 focus:ring-2 focus:ring-cyan-400/30"
                   value={deal.id}
                   onChange={(e) => setDealInUrl(e.target.value)}
                   aria-label="Selecionar deal"
@@ -1523,11 +1523,11 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
                     );
                   })}
                 </select>
-                <div className="text-xs text-slate-500">|</div>
-                <div className="truncate text-xs text-slate-400">{companyName}</div>
-                {crmLoading ? <div className="ml-2 text-[11px] text-slate-600">Sincronizando…</div> : null}
+                <div className="hidden sm:block text-xs text-slate-500">|</div>
+                <div className="hidden sm:block truncate text-xs text-slate-400">{companyName}</div>
+                {crmLoading ? <div className="hidden sm:block ml-2 text-[11px] text-slate-600">Sincronizando…</div> : null}
               </div>
-              <div className="mt-1 text-[11px] text-slate-600">{board.name ?? 'Pipeline'}</div>
+              <div className="mt-1 truncate text-[11px] text-slate-600">{board.name ?? 'Pipeline'}</div>
             </div>
 
             <div className="shrink-0 text-right">
@@ -1538,9 +1538,10 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
             </div>
           </div>
 
+          <div className="w-full overflow-x-auto pb-1 lg:ml-8 lg:w-auto lg:flex-1 lg:overflow-visible lg:pb-0">
           <div
-            className="ml-8 grid flex-1 gap-3"
-            style={{ gridTemplateColumns: `repeat(${Math.max(1, stages.length)}, minmax(0, 1fr))` }}
+            className="grid gap-3 grid-cols-[repeat(var(--stage-count),minmax(72px,1fr))] lg:grid-cols-[repeat(var(--stage-count),minmax(0,1fr))]"
+            style={{ ['--stage-count' as string]: String(Math.max(1, stages.length)) } as React.CSSProperties}
           >
             {stages.map((s, idx) => {
               const isActive = idx === stageIndex;
@@ -1564,16 +1565,17 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
               );
             })}
           </div>
+          </div>
 
           <div className="ml-8 hidden text-[11px] text-slate-600 xl:block">Clique nas etapas para mover o deal (real)</div>
         </div>
       </div>
 
       {/* Cockpit layout */}
-      <div className="h-[calc(100dvh-64px)] w-full overflow-hidden px-6 py-4 2xl:px-10">
-        <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[360px_1fr_420px] lg:items-stretch">
+      <div className="lg:h-[calc(100dvh-64px)] w-full lg:overflow-hidden px-0 md:px-6 py-4 2xl:px-10">
+        <div className="grid lg:h-full min-h-0 gap-4 lg:grid-cols-[360px_1fr_420px] lg:items-stretch">
           {/* Left rail */}
-          <div className="flex min-h-0 flex-col gap-4 overflow-auto pr-1">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4 lg:overflow-auto lg:pr-1">
             <Panel
               title="Health"
               icon={<HeartPulse className="h-4 w-4 text-emerald-300" />}
@@ -1627,7 +1629,7 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
                   Executar agora
                 </button>
 
-                <div className="grid w-full grid-cols-5 gap-2">
+                <div className="grid w-full grid-cols-4 sm:grid-cols-5 gap-2">
                   <button
                     type="button"
                     className="flex flex-col items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/3 px-2 py-2 hover:bg-white/5"
@@ -1848,9 +1850,9 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
           </div>
 
           {/* Center */}
-          <div className="flex min-h-0 flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+          <div className="flex min-h-0 min-w-0 flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-100">Atividades</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <button
@@ -1894,14 +1896,14 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/3 px-3 py-2">
-                  <Search className="h-4 w-4 text-slate-400" />
+              <div className="flex w-full sm:w-auto items-center gap-2">
+                <div className="flex flex-1 sm:flex-none min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/3 px-3 py-2">
+                  <Search className="h-4 w-4 shrink-0 text-slate-400" />
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Buscar"
-                    className="w-44 bg-transparent text-xs text-slate-200 outline-none placeholder:text-slate-600"
+                    className="w-full min-w-0 sm:w-44 bg-transparent text-xs text-slate-200 outline-none placeholder:text-slate-600"
                   />
                 </div>
                 <button
@@ -1916,7 +1918,7 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/10 bg-white/3">
-              <div className="flex-1 min-h-0 overflow-auto divide-y divide-white/10">
+              <div className="flex-1 min-h-0 max-h-[60dvh] lg:max-h-none overflow-auto divide-y divide-white/10">
                   {filteredTimelineItems.length === 0 ? (
                     <div className="px-6 py-10 text-center">
                       <div className="text-sm font-semibold text-slate-200">
@@ -1948,7 +1950,7 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
                       <div key={t.id} className="px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                               <span className="text-xs font-semibold text-slate-200">{t.title}</span>
                               {t.subtitle ? (
                                 t.title === 'Moveu para' ? (
@@ -1970,7 +1972,7 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
               </div>
 
               <div className="border-t border-white/10 px-4 py-3">
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:gap-4 text-xs text-slate-400">
                   <span
                     className="text-[11px] font-semibold uppercase tracking-wide text-slate-600"
                     title="Use quando a atividade aconteceu fora do CRM"
@@ -2118,7 +2120,7 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
                 <textarea
                   value={noteDraftTimeline}
                   onChange={(e) => setNoteDraftTimeline(e.target.value)}
-                  className="mt-2 min-h-0 flex-1 w-full resize-none rounded-xl border border-white/10 bg-white/2 p-3 text-sm text-slate-200 outline-none placeholder:text-slate-600"
+                  className="mt-2 min-h-28 lg:min-h-0 flex-1 w-full resize-none rounded-xl border border-white/10 bg-white/2 p-3 text-sm text-slate-200 outline-none placeholder:text-slate-600"
                   placeholder="Notas, resumo da call, próximos passos…"
                 />
                 <div className="mt-3 flex items-center justify-between gap-2">
@@ -2245,22 +2247,22 @@ export default function DealCockpitClient({ dealId }: { dealId?: string }) {
           </div>
 
           {/* Right rail */}
-          <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/10 bg-white/3">
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/20">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
+            <div className="flex h-[75dvh] lg:h-auto min-h-0 flex-1 flex-col rounded-2xl border border-white/10 bg-white/3">
+              <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 shrink-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 ring-1 ring-cyan-500/20">
                     <Sparkles className="h-4 w-4 text-cyan-300" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-sm font-semibold text-slate-100">NossoCRM Pilot</div>
-                    <div className="text-[11px] text-slate-500">Deal: {humanizeTestLabel(deal.title) || deal.title}</div>
+                    <div className="truncate text-[11px] text-slate-500">Deal: {humanizeTestLabel(deal.title) || deal.title}</div>
                   </div>
                 </div>
                 <Chip tone="success">Real</Chip>
               </div>
 
-              <div className="flex items-center gap-4 px-4 shrink-0">
+              <div className="flex items-center gap-4 px-4 shrink-0 overflow-x-auto sm:overflow-visible">
                 <TabButton active={tab === 'chat'} onClick={() => setTab('chat')}>
                   Chat IA
                 </TabButton>

@@ -168,8 +168,8 @@ export function RadarPage() {
     }
 
     return (
-        <div className="grid gap-6 p-4 lg:grid-cols-[320px_1fr]">
-            <aside className="space-y-4">
+        <div className="grid gap-6 md:p-4 lg:grid-cols-[320px_1fr]">
+            <aside className="min-w-0 space-y-4">
                 <div>
                     <h1 className="text-xl font-semibold">Radar de Clientes</h1>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -194,7 +194,7 @@ export function RadarPage() {
                 />
             </aside>
 
-            <section className="space-y-3">
+            <section className="min-w-0 space-y-3">
                 {search.isError && (
                     <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                         {search.error.message}
@@ -223,7 +223,7 @@ export function RadarPage() {
                             {visiveis.length} de {results.length} empresas visíveis com os filtros atuais.
                         </p>
                         {selecionados.size > 0 && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="secondary">{selecionados.size} marcados</Badge>
                                 <Button size="sm" disabled={salvandoLote} onClick={salvarSelecionados}>
                                     {salvandoLote ? 'Salvando…' : `Salvar os ${selecionados.size} como leads`}

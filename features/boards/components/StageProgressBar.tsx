@@ -91,7 +91,7 @@ export const StageProgressBar: React.FC<StageProgressBarProps> = ({
                                             onClick={() => onStageClick(stage.id)}
                                             aria-current={isCurrent ? 'step' : undefined}
                                             // "Invisible" affordance: clickable but not a chip.
-                                            className={`group inline-flex items-center gap-2 rounded-md px-0.5 py-1 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-500/40`}
+                                            className={`group inline-flex items-center gap-2 rounded-md px-0.5 py-1 max-md:py-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-500/40`}
                                             title={stage.label}
                                         >
                                             <span className={`rounded-full ${dotClass}`} />

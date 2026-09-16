@@ -15,7 +15,7 @@ import { type EmojiClickData, Theme } from 'emoji-picker-react';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
   ssr: false,
-  loading: () => <div className="w-[320px] h-[400px] animate-pulse bg-slate-800 rounded-xl" />,
+  loading: () => <div className="w-full h-[400px] animate-pulse bg-slate-800 rounded-xl" />,
 });
 import { cn } from '@/lib/utils';
 import { useSendTextMessage, useSendMessage } from '@/lib/query/hooks/useMessagingMessagesQuery';
@@ -490,7 +490,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
           <button
             type="button"
             onClick={cancelRecording}
-            className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+            className="p-2.5 md:p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
             title="Cancelar gravação"
             aria-label="Cancelar gravação"
           >
@@ -552,7 +552,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900"
+      className="relative border-t border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900"
     >
       {/* Reply preview bar */}
       {replyTo && (
@@ -574,7 +574,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
           <button
             type="button"
             onClick={onCancelReply}
-            className="w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
+            className="w-10 h-10 md:w-6 md:h-6 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
             aria-label="Cancelar resposta"
           >
             <X className="w-3.5 h-3.5" />
@@ -590,10 +590,10 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
               <img
                 src={pendingMedia.preview}
                 alt="Preview"
-                className="w-16 h-16 rounded-lg object-cover"
+                className="w-16 h-16 flex-shrink-0 rounded-lg object-cover"
               />
             ) : (
-              <div className="w-16 h-16 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center">
+              <div className="w-16 h-16 flex-shrink-0 rounded-lg bg-slate-100 dark:bg-white/10 flex items-center justify-center">
                 {pendingMedia.mediaType === 'document' ? (
                   <FileIcon className="w-6 h-6 text-slate-400" />
                 ) : pendingMedia.mediaType === 'audio' ? (
@@ -617,7 +617,8 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
             <button
               type="button"
               onClick={clearMedia}
-              className="p-1 text-slate-400 hover:text-red-500 rounded"
+              className="p-2.5 md:p-1 flex-shrink-0 text-slate-400 hover:text-red-500 rounded"
+              aria-label="Remover anexo"
             >
               <X className="w-4 h-4" />
             </button>
@@ -636,7 +637,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
 
         {/* Input pill: attach + textarea + emoji + template */}
         <div className={cn(
-          'flex-1 flex items-end rounded-2xl transition-colors',
+          'flex-1 min-w-0 flex items-end rounded-2xl transition-colors',
           'bg-slate-100 dark:bg-white/5',
           'ring-1 ring-transparent focus-within:ring-primary-500/50 focus-within:bg-white dark:focus-within:bg-white/[0.07]'
         )}>
@@ -669,7 +670,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
             rows={1}
             aria-label={pendingMedia ? 'Adicionar legenda (opcional)' : 'Digite uma mensagem'}
             className={cn(
-              'flex-1 py-2.5 text-sm resize-none bg-transparent',
+              'flex-1 min-w-0 py-2.5 text-sm resize-none bg-transparent',
               'focus:outline-none',
               'text-slate-900 dark:text-white placeholder-slate-400',
               'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -678,13 +679,14 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
             style={{ height: 'auto', minHeight: '40px' }}
           />
 
-          <div className="relative flex items-end flex-shrink-0 pb-0.5 pr-1" ref={emojiPickerRef}>
+          <div className="md:relative flex items-end flex-shrink-0 md:pb-0.5 pr-1" ref={emojiPickerRef}>
             {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-2 z-50">
+              // Mobile: anchored to the (full-width) form and capped to the viewport; md+: anchored to these buttons
+              <div className="absolute bottom-full right-2 md:right-0 mb-2 z-50 w-[320px] max-w-[calc(100vw-1rem)]">
                 <EmojiPicker
                   onEmojiClick={handleEmojiClick}
                   theme={Theme.AUTO}
-                  width={320}
+                  width="100%"
                   height={400}
                   searchPlaceholder="Buscar emoji..."
                   lazyLoadEmojis
@@ -695,7 +697,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
               type="button"
               onClick={() => setShowEmojiPicker(prev => !prev)}
               className={cn(
-                'p-2 rounded-xl transition-colors',
+                'p-2.5 md:p-2 rounded-xl transition-colors',
                 showEmojiPicker
                   ? 'text-primary-500'
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -708,7 +710,7 @@ export function MessageInput({ conversation, replyTo, onCancelReply }: MessageIn
             <button
               type="button"
               onClick={() => setShowTemplates(true)}
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl transition-colors"
+              className="p-2.5 md:p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl transition-colors"
               title="Enviar template"
               aria-label="Enviar template"
             >

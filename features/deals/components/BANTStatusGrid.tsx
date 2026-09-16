@@ -123,8 +123,8 @@ function BANTItem({ icon, title, status, value, notes }: BANTItemProps) {
         config.borderColor
       )}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex min-w-0 items-center gap-2">
           <div className={cn('p-1.5 rounded-lg', config.bgColor, config.color)}>
             {icon}
           </div>
@@ -164,7 +164,7 @@ function BANTItem({ icon, title, status, value, notes }: BANTItemProps) {
 
 export function BANTStatusGrid({ bantStatus, className }: BANTStatusGridProps) {
   return (
-    <div className={cn('grid grid-cols-2 gap-3', className)}>
+    <div className={cn('grid grid-cols-1 sm:grid-cols-2 gap-3', className)}>
       <BANTItem
         icon={<DollarSign className="w-4 h-4" />}
         title="Orçamento"

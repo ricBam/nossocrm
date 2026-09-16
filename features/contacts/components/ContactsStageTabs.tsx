@@ -76,11 +76,11 @@ export const ContactsStageTabs: React.FC<ContactsStageTabs> = ({
   const total = counts.LEAD + counts.MQL + counts.PROSPECT + counts.CUSTOMER + (counts.OTHER || 0);
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
       {/* All */}
       <button
         onClick={() => onStageChange('ALL')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
+        className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
           activeStage === 'ALL'
             ? 'bg-primary-100 dark:bg-primary-500/20 text-primary-700 dark:text-primary-300 border-primary-300 dark:border-primary-500/30'
             : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10'
@@ -108,7 +108,7 @@ export const ContactsStageTabs: React.FC<ContactsStageTabs> = ({
           <button
             key={stage}
             onClick={() => onStageChange(stage as ContactStage)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
               isActive
                 ? config.activeColor
                 : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/10'

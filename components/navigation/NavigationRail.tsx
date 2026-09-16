@@ -2,7 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { PRIMARY_NAV, SECONDARY_NAV } from './navConfig';
+import { useAuth } from '@/context/AuthContext';
+import { PRIMARY_NAV, SECONDARY_NAV, filterNavByRole } from './navConfig';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePrefetchRoute } from '@/lib/query/hooks';
 
@@ -14,6 +15,7 @@ export interface NavigationRailProps {
 export function NavigationRail({ onOpenMore }: NavigationRailProps) {
   const pathname = usePathname();
   const prefetch = usePrefetchRoute();
+  const { profile } = useAuth();
 
   const isHrefActive = (href: string) =>
     pathname === href ||
@@ -24,7 +26,7 @@ export function NavigationRail({ onOpenMore }: NavigationRailProps) {
     <nav
       aria-label="Navegação principal (tablet)"
       className={cn(
-        'flex',
+        'hidden md:flex',
         'flex-col justify-between',
         'w-20 shrink-0',
         'glass border-r border-[var(--color-border-subtle)]'
@@ -71,7 +73,7 @@ export function NavigationRail({ onOpenMore }: NavigationRailProps) {
         <div className="my-3 h-px bg-slate-200/60 dark:bg-white/10" />
 
         <div className="space-y-2">
-          {SECONDARY_NAV.map((item) => {
+          {filterNavByRole(SECONDARY_NAV, profile?.role).map((item) => {
             const Icon = item.icon;
             const isActive = isHrefActive(item.href);
             return (

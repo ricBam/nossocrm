@@ -838,7 +838,7 @@ export const ApiKeysSection: React.FC = () => {
               </div>
             ) : (
               keys.map((k) => (
-                <div key={k.id} className="p-4 bg-white dark:bg-white/5 flex items-center justify-between gap-4">
+                <div key={k.id} className="p-4 bg-white dark:bg-white/5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                       {k.name}

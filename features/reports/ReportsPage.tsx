@@ -175,35 +175,35 @@ const ReportsPage: React.FC = () => {
   ]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] space-y-4">
+    <div className="flex flex-col md:h-[calc(100vh-7rem)] space-y-4">
       {/* Header com Filtros */}
-      <div className="flex justify-between items-center shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
             Relatórios de Performance
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Análise detalhada de vendas e tendências.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <select
             value={selectedBoardId}
             onChange={(e) => setSelectedBoardId(e.target.value)}
             aria-label="Selecionar Pipeline"
-            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="min-w-0 flex-1 sm:flex-none px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             {boards.map(board => (
               <option key={board.id} value={board.id}>{board.name}</option>
             ))}
           </select>
 
-          <PeriodFilterSelect value={period} onChange={setPeriod} />
+          <PeriodFilterSelect value={period} onChange={setPeriod} className="min-w-0 flex-1 sm:flex-none" />
 
           <button
             type="button"
             onClick={handleExportPDF}
-            className="group flex items-center gap-2 px-3 py-2 rounded-lg glass border border-slate-200/50 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20 transition-all duration-200"
+            className="group shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg glass border border-slate-200/50 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20 transition-all duration-200"
             title="Exportar PDF"
           >
             <Download size={16} className="group-hover:scale-110 transition-transform" />
@@ -215,14 +215,14 @@ const ReportsPage: React.FC = () => {
       {/* Forecast Bar - FEATURE #1 (80/20) */}
       {hasGoal ? (
         <div className="glass p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-2">
+            <div className="flex items-center gap-2 min-w-0">
               <Target className={`${isOnTrack ? 'text-emerald-500' : 'text-amber-500'}`} size={20} />
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 {goalKpi}
               </h3>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className="text-right">
                 <span className="text-xs text-slate-500">Realizado</span>
                 <p className="text-lg font-bold text-emerald-500">{formatGoalValue(currentValue)}</p>
@@ -263,14 +263,14 @@ const ReportsPage: React.FC = () => {
       ) : (
         <div className="glass p-4 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-500/5 shadow-sm shrink-0">
           <div className="flex items-center gap-3">
-            <Settings className="text-amber-500" size={20} />
-            <div className="flex-1">
+            <Settings className="text-amber-500 shrink-0" size={20} />
+            <div className="flex-1 min-w-0">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Meta não configurada</h3>
               <p className="text-xs text-slate-500">Defina uma meta no board para acompanhar o forecast.</p>
             </div>
             <button
               onClick={() => router.push('/boards')}
-              className="px-3 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+              className="shrink-0 px-3 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
             >
               Configurar
             </button>
@@ -279,58 +279,58 @@ const ReportsPage: React.FC = () => {
       )}
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shrink-0">
         {/* Pipeline Value - FEATURE #2 */}
-        <div className="glass p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+        <div className="glass p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 rounded-lg bg-blue-500/10">
               <DollarSign className="text-blue-500" size={18} />
             </div>
             <span className="text-xs text-slate-500">Pipeline Total</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(pipelineValue)}</p>
+          <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white break-words">{formatCurrency(pipelineValue)}</p>
           <p className={`text-xs ${changes.pipeline >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
             {changes.pipeline >= 0 ? '+' : ''}{changes.pipeline.toFixed(1)}% {COMPARISON_LABELS[period]}
           </p>
         </div>
 
         {/* Win Rate */}
-        <div className="glass p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+        <div className="glass p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 rounded-lg bg-emerald-500/10">
               <Target className="text-emerald-500" size={18} />
             </div>
             <span className="text-xs text-slate-500">Win Rate</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{actualWinRate.toFixed(1)}%</p>
+          <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white break-words">{actualWinRate.toFixed(1)}%</p>
           <p className={`text-xs ${changes.winRate >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
             {changes.winRate >= 0 ? '+' : ''}{changes.winRate.toFixed(1)}% {COMPARISON_LABELS[period]}
           </p>
         </div>
 
         {/* Ciclo Médio */}
-        <div className="glass p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+        <div className="glass p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 rounded-lg bg-purple-500/10">
               <Clock className="text-purple-500" size={18} />
             </div>
             <span className="text-xs text-slate-500">Ciclo Médio</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{avgSalesCycle} dias</p>
+          <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white break-words">{avgSalesCycle} dias</p>
           <p className="text-xs text-slate-500">
             Rápido: {fastestDeal}d | Lento: {slowestDeal}d
           </p>
         </div>
 
         {/* Deals Fechados */}
-        <div className="glass p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
+        <div className="glass p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 rounded-lg bg-orange-500/10">
               <TrendingUp className="text-orange-500" size={18} />
             </div>
             <span className="text-xs text-slate-500">Deals Fechados</span>
           </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">
+          <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white break-words">
             <span className="text-emerald-500">{wonDeals.length}</span>
             <span className="text-slate-400 mx-1">/</span>
             <span className="text-red-500">{lostDeals.length}</span>
@@ -342,10 +342,10 @@ const ReportsPage: React.FC = () => {
       </div>
 
       {/* Bottom Grid - Charts & Leaderboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-[250px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:flex-1 md:min-h-[250px]">
         {/* Revenue Trend Chart */}
-        <div className="lg:col-span-2 glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col h-full">
-          <div className="flex justify-between items-center mb-2 shrink-0">
+        <div className="lg:col-span-2 glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col h-72 md:h-full">
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-2 shrink-0">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display">
               Tendência de Receita
             </h2>
@@ -363,7 +363,7 @@ const ReportsPage: React.FC = () => {
         </div>
 
         {/* Leaderboard - FEATURE #3 (Top Performers) */}
-        <div className="glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col h-full overflow-hidden">
+        <div className="glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col max-h-[28rem] md:max-h-none md:h-full overflow-hidden">
           <div className="flex justify-between items-center mb-3 shrink-0">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
               <Trophy className="text-amber-500" size={20} />
@@ -396,7 +396,7 @@ const ReportsPage: React.FC = () => {
                     <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{rep.name}</p>
                     <p className="text-xs text-slate-500">{rep.deals} deals</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-emerald-500">{formatCurrency(rep.revenue)}</p>
                   </div>
                 </div>

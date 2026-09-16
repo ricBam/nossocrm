@@ -66,7 +66,7 @@ export function LearnedPatternsPreview({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-primary-500" />

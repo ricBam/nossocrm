@@ -138,14 +138,14 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({
 
       <div className="space-y-2">
         {customFieldDefinitions.map(field => (
-          <div key={field.id} className={`flex items-center justify-between p-3 bg-white dark:bg-white/5 border rounded-lg group transition-colors ${editingId === field.id ? 'border-amber-400 dark:border-amber-500/50 ring-1 ring-amber-400/30' : 'border-slate-200 dark:border-white/10 hover:border-primary-300 dark:hover:border-primary-500/50'}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 dark:text-slate-400">
+          <div key={field.id} className={`flex items-center justify-between gap-2 p-3 bg-white dark:bg-white/5 border rounded-lg group transition-colors ${editingId === field.id ? 'border-amber-400 dark:border-amber-500/50 ring-1 ring-amber-400/30' : 'border-slate-200 dark:border-white/10 hover:border-primary-300 dark:hover:border-primary-500/50'}`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 w-8 h-8 rounded bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-500 dark:text-slate-400">
                 <Tag size={14} />
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{field.label}</p>
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900 dark:text-white break-words">{field.label}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-mono mt-0.5">
                   <span>{field.key}</span>
                   <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                   <span className="uppercase">{field.type}</span>
@@ -158,7 +158,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"

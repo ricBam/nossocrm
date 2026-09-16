@@ -92,12 +92,12 @@ export function BriefingCard({
   return (
     <div className={cn('space-y-6', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary-100 dark:bg-primary-500/20 rounded-lg">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="shrink-0 p-2 bg-primary-100 dark:bg-primary-500/20 rounded-lg">
             <FileText className="w-5 h-5 text-primary-600 dark:text-primary-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-bold text-slate-900 dark:text-white">
               Briefing Pré-Conversa
             </h3>

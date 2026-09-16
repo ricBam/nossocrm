@@ -131,7 +131,7 @@ export function ScheduleModal({
     const config = typeConfig[type];
 
     return (
-        <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center">
+        <div className="fixed inset-0 md:left-[var(--app-sidebar-width,0px)] z-[9999] flex items-center justify-center pt-[var(--app-safe-area-top,0px)] pb-[var(--app-safe-area-bottom,0px)]">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -139,7 +139,7 @@ export function ScheduleModal({
             />
 
             {/* Modal */}
-            <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xl mx-4 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xl mx-4 shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -148,7 +148,8 @@ export function ScheduleModal({
                     </h2>
                     <button
                         onClick={onClose}
-                        className="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+                        className="p-2 -m-1 md:p-1 md:m-0 hover:bg-slate-800 rounded-lg transition-colors"
+                        aria-label="Fechar"
                     >
                         <X size={20} className="text-slate-400" />
                     </button>
@@ -202,7 +203,7 @@ export function ScheduleModal({
                     </div>
 
                     {/* Date and Time */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-medium text-slate-400 mb-2">Data</label>
                             <input

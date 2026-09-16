@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { DealView } from '@/types';
-import { Building2, Hourglass, Trophy, XCircle } from 'lucide-react';
+import { ArrowRightLeft, Building2, Hourglass, Trophy, XCircle } from 'lucide-react';
 import { ActivityStatusIcon } from './ActivityStatusIcon';
 import { priorityAriaLabelPtBr } from '@/lib/utils/priority';
 
@@ -263,7 +263,21 @@ const DealCardComponent: React.FC<DealCardProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          {/* Touch: drag & drop HTML5 não funciona no toque — ação explícita para mover de estágio. */}
+          {onMoveToStage && !deal.id.startsWith('temp-') && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                onMoveToStage(deal.id);
+              }}
+              aria-label={`Mover ${deal.title} para outro estágio`}
+              className="hidden max-md:inline-flex pointer-coarse:inline-flex items-center gap-1 min-h-9 px-2.5 -my-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-xs font-semibold text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-white/10 focus-visible-ring"
+            >
+              <ArrowRightLeft size={14} aria-hidden="true" /> Mover
+            </button>
+          )}
           <ActivityStatusIcon
             status={activityStatus}
             type={deal.nextActivity?.type}

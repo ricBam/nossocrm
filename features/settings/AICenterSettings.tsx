@@ -22,18 +22,18 @@ export const AICenterSettings: React.FC = () => {
   return (
     <div className="pb-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
           Central de I.A
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
+        <p className="text-slate-500 dark:text-slate-400 mt-2 text-base sm:text-lg">
           Configure o provedor/modelo e gerencie os prompts usados no sistema.
         </p>
       </div>
 
       {/* Org-wide toggle (admin-only) — sempre visível no topo */}
-      <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-6 mb-6">
+      <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 sm:p-6 mb-6">
         <div className="flex items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <span className="text-lg">✨</span> IA ativa na organização
             </h2>
@@ -46,7 +46,7 @@ export const AICenterSettings: React.FC = () => {
               </p>
             )}
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className="relative inline-flex shrink-0 items-center cursor-pointer">
             <input
               type="checkbox"
               checked={aiOrgEnabled}

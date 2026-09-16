@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { MessageSquare, User, CheckCircle, MoreVertical, LinkIcon, Trash2, RotateCcw, Search } from 'lucide-react';
+import { MessageSquare, User, CheckCircle, MoreVertical, LinkIcon, Trash2, RotateCcw, Search, ArrowLeft, Info, Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { sanitizeUrl } from '@/lib/utils/sanitize';
@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Modal } from '@/components/ui/Modal';
+import { FullscreenSheet } from '@/components/ui/FullscreenSheet';
 import { useRealtimeSyncMessaging } from '@/lib/realtime/useRealtimeSync';
 import { queryKeys } from '@/lib/query';
 import { useContactPresence } from '@/lib/messaging/hooks/useContactPresence';
@@ -57,6 +58,7 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<import('@/lib/messaging/types').MessagingMessage | null>(null);
 
   // Subscribe to realtime updates
@@ -121,11 +123,42 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
   }, [selectedConversationId, selectedConversation, markAsRead]);
 
 
+  // Keep selection in sync with the `?id=` param so browser back/forward
+  // (e.g. the Android back gesture on mobile) returns to the list.
+  // Adjusting state during render avoids an extra effect pass.
+  const [prevConversationIdParam, setPrevConversationIdParam] = useState(conversationIdParam);
+  if (conversationIdParam !== prevConversationIdParam) {
+    setPrevConversationIdParam(conversationIdParam);
+    setSelectedConversationId(conversationIdParam || undefined);
+    setShowSearch(false);
+    setIsContactSheetOpen(false);
+  }
+
+  // Whether the current selection added a history entry we can pop on "Voltar".
+  const pushedSelectionRef = useRef(false);
+  // Set when "Buscar mensagens" is picked from the overflow menu, so the menu
+  // does not steal focus back from the search input when it closes.
+  const focusSearchOnCloseRef = useRef(false);
+
   // Update URL when conversation changes
   const handleSelectConversation = useCallback((id: string) => {
     setSelectedConversationId(id);
     setShowSearch(false);
+    pushedSelectionRef.current = true;
     router.push(`/messaging?id=${id}`, { scroll: false });
+  }, [router]);
+
+  // Mobile back: return to the conversation list
+  const handleBackToList = useCallback(() => {
+    setShowSearch(false);
+    setIsContactSheetOpen(false);
+    if (pushedSelectionRef.current) {
+      pushedSelectionRef.current = false;
+      router.back();
+      return;
+    }
+    setSelectedConversationId(undefined);
+    router.replace('/messaging', { scroll: false });
   }, [router]);
 
   // Link conversation to contact
@@ -174,9 +207,14 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
   }, [router]);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
-      {/* Conversation List */}
-      <div className="w-80 flex-shrink-0">
+    <div className="h-full flex pb-[calc(var(--app-bottom-nav-height,0px)+var(--app-safe-area-bottom,0px))]">
+      {/* Conversation List — on mobile it is hidden while a conversation is open */}
+      <div
+        className={cn(
+          'w-full md:w-80 flex-shrink-0 min-h-0',
+          selectedConversationId && 'hidden md:block'
+        )}
+      >
         <ConversationList
           selectedId={selectedConversationId}
           onSelect={handleSelectConversation}
@@ -184,13 +222,27 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
         />
       </div>
 
-      {/* Message Thread */}
-      <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900/50">
+      {/* Message Thread — on mobile it is only shown when a conversation is selected */}
+      <div
+        className={cn(
+          'flex-1 min-w-0 min-h-0 flex-col bg-slate-50 dark:bg-slate-900/50',
+          selectedConversationId ? 'flex' : 'hidden md:flex'
+        )}
+      >
         {selectedConversation ? (
           <>
             {/* Header */}
-            <div className="h-16 px-4 flex items-center gap-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/10">
-              <div className="relative">
+            <div className="h-16 px-2 md:px-4 flex items-center gap-2 md:gap-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/10">
+              <button
+                type="button"
+                onClick={handleBackToList}
+                aria-label="Voltar"
+                title="Voltar"
+                className="md:hidden flex-shrink-0 w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="relative flex-shrink-0">
                 {sanitizeUrl(selectedConversation.externalContactAvatar) ? (
                   <img
                     src={sanitizeUrl(selectedConversation.externalContactAvatar)}
@@ -210,8 +262,8 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
                 <h2 className="font-semibold text-slate-900 dark:text-white truncate">
                   {selectedConversation.contactName || selectedConversation.externalContactName || 'Contato desconhecido'}
                 </h2>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {selectedConversation.channelName}
                   </p>
                   <WindowExpiryBadge
@@ -220,7 +272,7 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                 <AssignmentDropdown
                   conversationId={selectedConversation.id}
                   assignedUserId={selectedConversation.assignedUserId}
@@ -229,7 +281,7 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
                   type="button"
                   onClick={() => setShowSearch((v) => !v)}
                   className={cn(
-                    'p-2 rounded-lg transition-colors',
+                    'hidden md:inline-flex p-2 rounded-lg transition-colors',
                     showSearch
                       ? 'text-primary-500 bg-primary-50 dark:bg-primary-500/10'
                       : 'text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
@@ -242,7 +294,7 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
                   <button
                     type="button"
                     onClick={() => resolveConversation(selectedConversation.id)}
-                    className="p-2 text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+                    className="hidden md:inline-flex p-2 text-slate-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors"
                     title="Marcar como resolvida"
                   >
                     <CheckCircle className="w-5 h-5" />
@@ -252,7 +304,7 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
                   <button
                     type="button"
                     onClick={() => setIsLinkModalOpen(true)}
-                    className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"
+                    className="hidden md:inline-flex p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"
                     title="Vincular contato"
                   >
                     <LinkIcon className="w-5 h-5" />
@@ -261,21 +313,71 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="hidden md:inline-flex p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                   title="Excluir conversa"
                 >
                   <Trash2 className="w-5 h-5" />
+                </button>
+                {/* Contact details — the side panel is only a column on xl+ */}
+                <button
+                  type="button"
+                  onClick={() => setIsContactSheetOpen(true)}
+                  className="xl:hidden p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+                  title="Dados do contato"
+                  aria-label="Dados do contato"
+                >
+                  <Info className="w-5 h-5" />
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
                       className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+                      aria-label="Mais ações"
                     >
                       <MoreVertical className="w-5 h-5" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-48"
+                    onCloseAutoFocus={(e) => {
+                      // Let the search input keep focus when opened from this menu
+                      if (focusSearchOnCloseRef.current) {
+                        focusSearchOnCloseRef.current = false;
+                        e.preventDefault();
+                      }
+                    }}
+                  >
+                    {/* Mobile-only: actions that are icon buttons on md+ */}
+                    <DropdownMenuItem
+                      onClick={() => {
+                        focusSearchOnCloseRef.current = !showSearch;
+                        setShowSearch((v) => !v);
+                      }}
+                      className="gap-2 md:hidden"
+                    >
+                      <Search className="w-4 h-4" />
+                      {showSearch ? 'Fechar busca' : 'Buscar mensagens'}
+                    </DropdownMenuItem>
+                    {selectedConversation.status === 'open' && (
+                      <DropdownMenuItem
+                        onClick={() => resolveConversation(selectedConversation.id)}
+                        className="gap-2 md:hidden"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Marcar como resolvida
+                      </DropdownMenuItem>
+                    )}
+                    {!selectedConversation.contactId && (
+                      <DropdownMenuItem
+                        onClick={() => setIsLinkModalOpen(true)}
+                        className="gap-2 md:hidden"
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                        Vincular contato
+                      </DropdownMenuItem>
+                    )}
                     {selectedConversation.status === 'resolved' && (
                       <DropdownMenuItem
                         onClick={() => reopenConversation(selectedConversation.id)}
@@ -320,6 +422,10 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
               onCancelReply={() => setReplyToMessage(null)}
             />
           </>
+        ) : selectedConversationId && isConversationLoading ? (
+          <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500">
+            <Loader2 className="w-6 h-6 animate-spin" aria-label="Carregando conversa" />
+          </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
             <MessageSquare className="w-16 h-16 mb-4 opacity-50" />
@@ -329,8 +435,8 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
         )}
       </div>
 
-      {/* Contact Panel */}
-      <div className="w-80 border-l border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 flex-shrink-0">
+      {/* Contact Panel — column on xl+ */}
+      <div className="hidden xl:block w-80 border-l border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 flex-shrink-0">
         <ContactPanel
           conversation={selectedConversation}
           isLoading={isConversationLoading && !!selectedConversationId}
@@ -339,6 +445,26 @@ export function MessagingPage({ initialConversationId }: MessagingPageProps = {}
           onViewDeals={handleViewDeals}
         />
       </div>
+
+      {/* Contact Panel — fullscreen sheet below xl */}
+      <FullscreenSheet
+        isOpen={isContactSheetOpen && !!selectedConversationId}
+        onClose={() => setIsContactSheetOpen(false)}
+        title="Dados do contato"
+      >
+        <div className="-mx-4 -my-4">
+          <ContactPanel
+            conversation={selectedConversation}
+            isLoading={isConversationLoading && !!selectedConversationId}
+            onLinkContact={() => {
+              setIsContactSheetOpen(false);
+              setIsLinkModalOpen(true);
+            }}
+            onViewContact={handleViewContact}
+            onViewDeals={handleViewDeals}
+          />
+        </div>
+      </FullscreenSheet>
 
       {/* Contact Link Modal */}
       <ContactLinkModal

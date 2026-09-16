@@ -15,20 +15,20 @@ export const ContactsFilters: React.FC<ContactsFiltersProps> = ({ dateRange, set
     return (
         <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 animate-in slide-in-from-top-2">
             <div className="flex flex-wrap gap-4 items-end">
-                <div>
+                <div className="w-full sm:w-auto">
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Criação (Início)</label>
                     <input
                         type="date"
-                        className="bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white"
+                        className="w-full sm:w-auto bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white"
                         value={dateRange.start}
                         onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
                     />
                 </div>
-                <div>
+                <div className="w-full sm:w-auto">
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Criação (Fim)</label>
                     <input
                         type="date"
-                        className="bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white"
+                        className="w-full sm:w-auto bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white"
                         value={dateRange.end}
                         onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
                     />

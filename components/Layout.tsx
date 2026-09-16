@@ -46,7 +46,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Wallet,
-  Radar
+  Radar,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -55,6 +56,7 @@ import { prefetchRoute, RouteName } from '@/lib/prefetch';
 import { isDebugMode, enableDebugMode, disableDebugMode } from '@/lib/debug';
 import { SkipLink } from '@/lib/a11y';
 import { useResponsiveMode } from '@/hooks/useResponsiveMode';
+import { getCurrentResponsiveMode } from '@/lib/utils/responsive';
 import { BottomNav, MoreMenuSheet, NavigationRail } from '@/components/navigation';
 import { useUnreadCount } from '@/lib/query/hooks/useConversationsQuery';
 
@@ -84,6 +86,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Configurações',
   '/profile': 'Perfil',
   '/ai': 'Assistente IA',
+  '/radar': 'Radar',
 };
 
 const getPageTitle = (pathname: string): string => {
@@ -178,7 +181,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { mode } = useResponsiveMode();
-  const isMobile = mode === 'mobile';
   const isTablet = mode === 'tablet';
   const isDesktop = mode === 'desktop';
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -220,15 +222,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, []);
 
-  // Expose bottom nav height so the content can pad itself and avoid being covered.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.style.setProperty('--app-bottom-nav-height', isMobile ? '56px' : '0px');
-  }, [isMobile]);
+  // --app-bottom-nav-height is driven by a media query in globals.css (no JS measurement flash).
 
   // Close "More" menu when route changes.
   useEffect(() => {
     setIsMoreOpen(false);
+  }, [pathname]);
+
+  // On mobile/tablet the AI panel covers the page, so navigating should dismiss it.
+  useEffect(() => {
+    if (getCurrentResponsiveMode() !== 'desktop') setIsGlobalAIOpen(false);
   }, [pathname]);
 
   // Track the last clicked menu item to maintain highlight during Suspense transitions
@@ -265,11 +268,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   if (!loading && !user) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-bg bg-dots">
+    <div className="flex h-dvh overflow-hidden bg-surface-bg bg-dots">
       {/* Skip Link for keyboard users */}
       <SkipLink targetId="main-content" />
 
       {/* Tablet rail (shows full icon set; no "More" sheet needed) */}
+      {/* hidden below md via CSS so phones never flash the rail before the viewport is measured */}
       {isTablet ? <NavigationRail /> : null}
 
       {/* Sidebar - Collapsible */}
@@ -477,14 +481,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           {/* Header */}
-          <header className="h-16 glass border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 z-40 shrink-0" role="banner">
-            <h1 className="text-lg font-semibold font-display text-slate-900 dark:text-white">
+          <header className="h-[calc(3.5rem+var(--app-safe-area-top,0px))] pt-[var(--app-safe-area-top,0px)] md:h-16 md:pt-0 glass border-b border-[var(--color-border-subtle)] flex items-center justify-between gap-2 px-4 md:px-6 z-40 shrink-0" role="banner">
+            <h1 className="min-w-0 truncate text-lg font-semibold font-display text-slate-900 dark:text-white">
               {getPageTitle(pathname)}
             </h1>
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-1 md:gap-4">
               <button
                 type="button"
                 onClick={() => setIsGlobalAIOpen(!isGlobalAIOpen)}
+                aria-label="Assistente de IA"
+                aria-pressed={isGlobalAIOpen}
                 className={`p-2 rounded-full transition-all active:scale-95 focus-visible-ring ${isGlobalAIOpen
                   ? 'text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/20'
                   : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
@@ -497,7 +503,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <button
                   type="button"
                   onClick={toggleDebugMode}
-                  className={`p-2 rounded-full transition-all active:scale-95 focus-visible-ring ${debugEnabled
+                  aria-label="Modo debug"
+                  className={`hidden md:inline-flex p-2 rounded-full transition-all active:scale-95 focus-visible-ring ${debugEnabled
                     ? 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30 ring-2 ring-purple-400/50'
                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                     }`}
@@ -510,7 +517,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <button
                 type="button"
                 onClick={toggleDarkMode}
-                className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-95 focus-visible-ring"
+                aria-label={darkMode ? 'Tema claro' : 'Tema escuro'}
+                className="hidden md:inline-flex p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all active:scale-95 focus-visible-ring"
               >
                 {darkMode ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
               </button>
@@ -522,7 +530,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             className={`flex-1 overflow-auto relative scroll-smooth ${
               pathname === '/messaging' || pathname.startsWith('/messaging/')
                 ? 'p-0'
-                : 'p-6 pb-[calc(1.5rem+var(--app-bottom-nav-height,0px)+var(--app-safe-area-bottom,0px))]'
+                : 'p-4 md:p-6 pb-[calc(1rem+var(--app-bottom-nav-height,0px)+var(--app-safe-area-bottom,0px))] md:pb-[calc(1.5rem+var(--app-bottom-nav-height,0px)+var(--app-safe-area-bottom,0px))]'
             }`}
             tabIndex={-1}
           >
@@ -530,18 +538,40 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </main>
         </div>
 
-        {/* Right Sidebar (AI Assistant) */}
-        <aside
-          aria-label="Assistente de IA"
-          aria-hidden={!isGlobalAIOpen}
-          className={`border-l border-[var(--color-border)] bg-surface transition-all duration-300 ease-in-out overflow-hidden flex flex-col ${isGlobalAIOpen ? 'w-96 opacity-100' : 'w-0 opacity-0'}`}
-        >
-          <div className="w-96 h-full">
-            {isGlobalAIOpen && (
+        {/* Right Sidebar (AI Assistant) — desktop: coluna lateral; mobile/tablet: painel sobreposto em tela cheia */}
+        {isDesktop ? (
+          <aside
+            aria-label="Assistente de IA"
+            aria-hidden={!isGlobalAIOpen}
+            className={`border-l border-[var(--color-border)] bg-surface transition-all duration-300 ease-in-out overflow-hidden flex flex-col ${isGlobalAIOpen ? 'w-96 opacity-100' : 'w-0 opacity-0'}`}
+          >
+            <div className="w-96 h-full">
+              {isGlobalAIOpen && (
+                <UIChat />
+              )}
+            </div>
+          </aside>
+        ) : isGlobalAIOpen ? (
+          <aside
+            aria-label="Assistente de IA"
+            className="fixed inset-x-0 top-0 bottom-[calc(var(--app-bottom-nav-height,0px)+var(--app-safe-area-bottom,0px))] md:left-auto md:w-[28rem] md:border-l md:border-[var(--color-border)] z-[45] flex flex-col bg-surface pt-[var(--app-safe-area-top,0px)]"
+          >
+            <div className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--color-border-subtle)] px-4">
+              <span className="text-sm font-semibold font-display text-slate-900 dark:text-white">Assistente de IA</span>
+              <button
+                type="button"
+                onClick={() => setIsGlobalAIOpen(false)}
+                className="p-2 -mr-2 rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 focus-visible-ring"
+                aria-label="Fechar assistente de IA"
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">
               <UIChat />
-            )}
-          </div>
-        </aside>
+            </div>
+          </aside>
+        ) : null}
       </div>
 
       {/* Mobile app shell */}

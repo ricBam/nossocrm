@@ -144,7 +144,7 @@ export function PendingAdvancesSection({ limit = 5, onResolved }: PendingAdvance
       <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-500/5 p-4">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Brain size={16} className="text-amber-600 dark:text-amber-400" />
             <h3 className="font-bold text-slate-900 dark:text-white">
               Avanços Pendentes
@@ -156,7 +156,7 @@ export function PendingAdvancesSection({ limit = 5, onResolved }: PendingAdvance
           {hasMore && (
             <button
               onClick={() => {/* TODO: Navigate to full list */}}
-              className="text-sm font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+              className="shrink-0 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
             >
               Ver todos
               <ArrowRight size={14} />
@@ -184,7 +184,7 @@ export function PendingAdvancesSection({ limit = 5, onResolved }: PendingAdvance
 
       {/* Resolution Sheet */}
       <Sheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} ariaLabel="Confirmar Avanço de Estágio">
-        <div className="max-h-[85vh] overflow-y-auto p-4">
+        <div className="max-h-[85dvh] overflow-y-auto p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               Confirmar Avanço de Estágio
@@ -192,7 +192,8 @@ export function PendingAdvancesSection({ limit = 5, onResolved }: PendingAdvance
             <button
               type="button"
               onClick={() => setIsSheetOpen(false)}
-              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10"
+              className="shrink-0 p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10"
+              aria-label="Fechar"
             >
               <X size={20} className="text-slate-500" />
             </button>

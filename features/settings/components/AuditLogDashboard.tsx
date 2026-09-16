@@ -245,8 +245,8 @@ export const AuditLogDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Shield className="w-6 h-6 text-primary-500" />
             Logs de Auditoria
@@ -258,7 +258,7 @@ export const AuditLogDashboard: React.FC = () => {
         <button
           onClick={fetchLogs}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="shrink-0 flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Atualizar
@@ -318,7 +318,7 @@ export const AuditLogDashboard: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400" />
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Filtros:</span>
@@ -394,13 +394,13 @@ export const AuditLogDashboard: React.FC = () => {
                   className={`p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer ${config.bgColor}`}
                   onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className={`p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}>
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className={`shrink-0 p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}>
                       <Icon className={`w-5 h-5 ${config.textColor}`} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.bgColor} ${config.textColor} border ${config.borderColor}`}>
                           {config.label}
                         </span>
@@ -409,7 +409,7 @@ export const AuditLogDashboard: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
                           {formatRelative(log.created_at, nowTs)}
@@ -429,7 +429,7 @@ export const AuditLogDashboard: React.FC = () => {
                       {/* Expanded Details */}
                       {isExpanded && (
                         <div className="mt-4 p-4 bg-slate-50 dark:bg-black/20 rounded-lg text-sm space-y-2">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                               <span className="text-slate-500 dark:text-slate-400">Data/Hora:</span>
                               <p className="text-slate-700 dark:text-slate-300">
@@ -438,7 +438,7 @@ export const AuditLogDashboard: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-slate-500 dark:text-slate-400">User ID:</span>
-                              <p className="text-slate-700 dark:text-slate-300 font-mono text-xs">
+                              <p className="text-slate-700 dark:text-slate-300 font-mono text-xs break-all">
                                 {log.user_id}
                               </p>
                             </div>
@@ -449,7 +449,7 @@ export const AuditLogDashboard: React.FC = () => {
                               </div>
                             )}
                             {log.user_agent && (
-                              <div className="col-span-2">
+                              <div className="sm:col-span-2 min-w-0">
                                 <span className="text-slate-500 dark:text-slate-400">User Agent:</span>
                                 <p className="text-slate-700 dark:text-slate-300 text-xs truncate">
                                   {log.user_agent}

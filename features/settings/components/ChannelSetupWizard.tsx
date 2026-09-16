@@ -397,7 +397,7 @@ function SelectStep({ onSelect }: SelectStepProps) {
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         {config.description}
                       </p>
-                      <div className="mt-2 flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="mt-2 flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <span>Configurar</span>
                         <ArrowRight className="w-3 h-3" />
                       </div>
