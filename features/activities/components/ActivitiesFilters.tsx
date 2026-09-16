@@ -43,21 +43,25 @@ export const ActivitiesFilters: React.FC<ActivitiesFiltersProps> = ({
   setListLayout,
 }) => {
   return (
-    <div className="flex gap-4 mb-6">
-      <div className="flex-1 relative">
+    <div className="flex flex-wrap items-center gap-2 mb-4 md:flex-nowrap md:items-stretch md:gap-4 md:mb-6">
+      <div className="relative w-full md:w-auto md:flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
         <input
           type="text"
+          inputMode="search"
+          enterKeyHint="search"
+          aria-label="Buscar atividades"
           placeholder="Buscar atividades..."
           className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 text-slate-900 dark:text-white"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
       </div>
-      <div className="flex items-center gap-2">
-        <Filter size={20} className="text-slate-400" />
+      <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-none">
+        <Filter size={20} className="shrink-0 text-slate-400" aria-hidden="true" />
         <select
-          className="bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500 text-slate-900 dark:text-white"
+          aria-label="Filtrar por tipo"
+          className="w-full min-w-0 md:w-auto bg-white dark:bg-dark-card border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500 text-slate-900 dark:text-white"
           value={filterType}
           onChange={e => setFilterType(e.target.value as Activity['type'] | 'ALL')}
         >
@@ -69,11 +73,13 @@ export const ActivitiesFilters: React.FC<ActivitiesFiltersProps> = ({
         </select>
       </div>
       {listLayout && setListLayout && (
-        <div className="flex bg-white dark:bg-dark-card p-1 rounded-lg border border-slate-200 dark:border-white/10">
+        <div className="flex shrink-0 bg-white dark:bg-dark-card p-1 rounded-lg border border-slate-200 dark:border-white/10">
           <button
             type="button"
             onClick={() => setListLayout('rows')}
             title="Lista"
+            aria-label="Layout em lista"
+            aria-pressed={listLayout === 'rows'}
             className={`p-2 rounded-md transition-all ${
               listLayout === 'rows'
                 ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400'
@@ -86,6 +92,8 @@ export const ActivitiesFilters: React.FC<ActivitiesFiltersProps> = ({
             type="button"
             onClick={() => setListLayout('blocks')}
             title="Blocos"
+            aria-label="Layout em blocos"
+            aria-pressed={listLayout === 'blocks'}
             className={`p-2 rounded-md transition-all ${
               listLayout === 'blocks'
                 ? 'bg-primary-50 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400'

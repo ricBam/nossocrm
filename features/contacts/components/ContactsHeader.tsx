@@ -51,7 +51,7 @@ export const ContactsHeader: React.FC<ContactsHeaderProps> = ({
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
           {viewMode === 'people' ? 'Contatos (Pessoas)' : 'Empresas (Contas)'}
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
@@ -60,7 +60,7 @@ export const ContactsHeader: React.FC<ContactsHeaderProps> = ({
             : 'Organizações onde seus contatos trabalham.'}
         </p>
       </div>
-      <div className="flex gap-3 w-full sm:w-auto">
+      <div className="flex flex-wrap sm:flex-nowrap items-center sm:items-stretch gap-2 sm:gap-3 w-full sm:w-auto">
         {viewMode === 'people' && (
           <select
             value={statusFilter}
@@ -68,7 +68,7 @@ export const ContactsHeader: React.FC<ContactsHeaderProps> = ({
               setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE' | 'CHURNED' | 'RISK')
             }
             aria-label="Filtrar por status"
-            className="pl-3 pr-8 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm appearance-none cursor-pointer"
+            className="flex-1 min-w-0 sm:flex-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm appearance-none cursor-pointer"
           >
             <option value="ALL">Todos os Status</option>
             <option value="ACTIVE">Ativos</option>
@@ -77,7 +77,7 @@ export const ContactsHeader: React.FC<ContactsHeaderProps> = ({
             <option value="RISK">Em Risco (Alerta)</option>
           </select>
         )}
-        <div className="relative flex-1 sm:w-72">
+        <div className="relative w-full order-first sm:order-none sm:flex-1 sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
@@ -93,7 +93,7 @@ export const ContactsHeader: React.FC<ContactsHeaderProps> = ({
           onClick={() => setIsFilterOpen(!isFilterOpen)}
           aria-label={isFilterOpen ? 'Fechar filtros avançados' : 'Abrir filtros avançados'}
           aria-expanded={isFilterOpen}
-          className={`p-2 border rounded-lg transition-colors ${isFilterOpen ? 'bg-primary-50 border-primary-200 text-primary-600' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/10'}`}
+          className={`shrink-0 p-2.5 sm:p-2 border rounded-lg transition-colors ${isFilterOpen ? 'bg-primary-50 border-primary-200 text-primary-600' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/10'}`}
         >
           <Filter size={20} aria-hidden="true" />
         </button>
@@ -102,16 +102,19 @@ export const ContactsHeader: React.FC<ContactsHeaderProps> = ({
             type="button"
             onClick={openImportExportModal}
             aria-label="Importar/Exportar contatos"
-            className="p-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
+            className="shrink-0 p-2.5 sm:p-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
           >
             <Download size={20} aria-hidden="true" />
           </button>
         )}
         <button
           onClick={openCreateModal}
-          className="bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-primary-600/20"
+          aria-label={viewMode === 'people' ? 'Novo Contato' : 'Nova Empresa'}
+          className="shrink-0 bg-primary-600 hover:bg-primary-500 text-white px-3 py-2.5 sm:px-4 sm:py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-primary-600/20"
         >
-          <Plus size={18} /> {viewMode === 'people' ? 'Novo Contato' : 'Nova Empresa'}
+          <Plus size={18} aria-hidden="true" />
+          <span className="sm:hidden">{viewMode === 'people' ? 'Novo' : 'Nova'}</span>
+          <span className="hidden sm:inline">{viewMode === 'people' ? 'Novo Contato' : 'Nova Empresa'}</span>
         </button>
       </div>
     </div>

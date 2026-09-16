@@ -27,7 +27,7 @@ export const TaskTabs: React.FC<TaskTabsProps> = ({
   setShowCompleted,
 }) => {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
       <div className="flex bg-white dark:bg-dark-card p-1 rounded-lg border border-slate-200 dark:border-white/10">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
@@ -47,12 +47,12 @@ export const TaskTabs: React.FC<TaskTabsProps> = ({
       </div>
 
       {taskTab === 'all' && (
-        <label className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 cursor-pointer">
+        <label className="flex min-h-10 sm:min-h-0 items-center gap-2 text-sm text-slate-500 dark:text-slate-400 cursor-pointer">
           <input
             type="checkbox"
             checked={showCompleted}
             onChange={(e) => setShowCompleted(e.target.checked)}
-            className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+            className="w-5 h-5 sm:w-4 sm:h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
           />
           Mostrar concluídas
         </label>

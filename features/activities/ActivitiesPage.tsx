@@ -106,7 +106,7 @@ export const ActivitiesPage: React.FC = () => {
     };
 
     return (
-        <div className="p-8 max-w-400 mx-auto">
+        <div className={`p-0 md:p-8 max-w-400 mx-auto ${selectedActivities.size > 0 ? 'pb-20 md:pb-8' : ''}`}>
             <ActivitiesHeader
                 viewMode={viewMode}
                 setViewMode={setViewMode}

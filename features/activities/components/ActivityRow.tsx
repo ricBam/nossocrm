@@ -153,7 +153,7 @@ const ActivityRowComponent: React.FC<ActivityRowProps> = ({
             tabIndex={0}
             onClick={handleRowClick}
             onKeyDown={handleRowKeyDown}
-            className={`group flex items-center gap-4 p-4 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/5 rounded-xl hover:border-primary-500/50 dark:hover:border-primary-500/50 transition-all cursor-pointer ${activity.completed ? 'opacity-60' : ''} ${isSelected ? 'border-primary-500 dark:border-primary-500 bg-primary-50/50 dark:bg-primary-500/10' : ''}`}
+            className={`group flex items-center gap-3 p-3 sm:gap-4 sm:p-4 bg-white dark:bg-dark-card border border-slate-200 dark:border-white/5 rounded-xl hover:border-primary-500/50 dark:hover:border-primary-500/50 transition-all cursor-pointer ${activity.completed ? 'opacity-60' : ''} ${isSelected ? 'border-primary-500 dark:border-primary-500 bg-primary-50/50 dark:bg-primary-500/10' : ''}`}
         >
             {onSelect && (
                 <input
@@ -161,7 +161,7 @@ const ActivityRowComponent: React.FC<ActivityRowProps> = ({
                     checked={isSelected}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => onSelect(activity.id, e.target.checked)}
-                    className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+                    className="shrink-0 w-5 h-5 sm:w-4 sm:h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
                 />
             )}
 
@@ -180,50 +180,50 @@ const ActivityRowComponent: React.FC<ActivityRowProps> = ({
             </button>
 
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg">
+                <div className="flex items-start gap-2 mb-1 sm:items-center">
+                    <span className="shrink-0 p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg">
                         {getActivityIcon(activity.type)}
                     </span>
-                    <h3 className={`font-medium text-slate-900 dark:text-white truncate ${activity.completed ? 'line-through text-slate-500' : ''}`}>
+                    <h3 className={`min-w-0 self-center break-words font-medium text-slate-900 dark:text-white sm:truncate ${activity.completed ? 'line-through text-slate-500' : ''}`}>
                         {formatTitle(activity.title)}
                     </h3>
                     {isOverdue && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 rounded-full">
+                        <span className="shrink-0 self-center text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 rounded-full">
                             ATRASADO
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400 sm:flex-nowrap">
                     {deal && (
-                        <span className="flex items-center gap-1.5 text-primary-600 dark:text-primary-400 font-medium">
-                            <Circle size={8} fill="currentColor" />
-                            {deal.title}
+                        <span className="flex min-w-0 max-w-full items-center gap-1.5 text-primary-600 dark:text-primary-400 font-medium">
+                            <Circle size={8} fill="currentColor" className="shrink-0" />
+                            <span className="truncate">{deal.title}</span>
                         </span>
                     )}
                     {!deal && contact && (
                         <Link
                             href={`/contacts?contactId=${contact.id}`}
-                            className="flex items-center gap-1.5 text-primary-600 dark:text-primary-400 font-medium hover:underline"
+                            className="flex min-w-0 max-w-full items-center gap-1.5 text-primary-600 dark:text-primary-400 font-medium hover:underline"
                             title={`Abrir contato: ${contact.name}`}
                         >
-                            <Users size={14} />
-                            <span className="truncate max-w-[280px]">{contact.name}</span>
+                            <Users size={14} className="shrink-0" />
+                            <span className="truncate max-w-full sm:max-w-[280px]">{contact.name}</span>
                         </Link>
                     )}
                     {!deal && company && (
-                        <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                            <Building2 size={14} />
-                            <span className="truncate max-w-[280px]">{company.name}</span>
+                        <span className="flex min-w-0 max-w-full items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                            <Building2 size={14} className="shrink-0" />
+                            <span className="truncate max-w-full sm:max-w-[280px]">{company.name}</span>
                         </span>
                     )}
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex shrink-0 items-center gap-1.5">
                         <Clock size={14} />
                         {formatRelativeTime(activity.date)}
                     </span>
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex shrink-0 flex-col items-center gap-1 sm:flex-row sm:gap-2 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 <button
                     onClick={(e) => {
                         e.stopPropagation();

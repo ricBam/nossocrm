@@ -63,7 +63,7 @@ export const ContactsPage: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6 p-8 max-w-[1600px] mx-auto">
+        <div className="space-y-4 md:space-y-6 p-0 md:p-8 max-w-[1600px] mx-auto">
             <ContactsHeader
                 viewMode={controller.viewMode}
                 search={controller.search}
@@ -120,8 +120,8 @@ export const ContactsPage: React.FC = () => {
 
             {/* Bulk Actions Bar */}
             {controller.selectedIds.size > 0 && (
-                <div className="flex items-center justify-between bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg px-4 py-3">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg px-3 md:px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
                             {controller.selectedIds.size} {controller.viewMode === 'people' ? 'contato(s)' : 'empresa(s)'} selecionado(s)
                         </span>
@@ -135,7 +135,7 @@ export const ContactsPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => controller.setBulkDeleteConfirm(true)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 md:py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
                         >
                             <Trash2 size={14} />
                             Excluir selecionados

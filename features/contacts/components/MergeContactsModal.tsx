@@ -70,7 +70,7 @@ export const MergeContactsModal: React.FC<MergeContactsModalProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-white/10">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-500/10">
                 <GitMerge className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -96,7 +96,7 @@ export const MergeContactsModal: React.FC<MergeContactsModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             {pendingCount === 0 ? (
               <div className="text-center py-12">
                 <Check className="w-12 h-12 text-green-500 mx-auto mb-3" />
@@ -170,9 +170,9 @@ export const MergeContactsModal: React.FC<MergeContactsModalProps> = ({
                               <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                                 {contact?.name || group.contact_names[i]}
                               </p>
-                              <div className="flex items-center gap-3 mt-0.5">
+                              <div className="flex flex-wrap items-center gap-x-3 mt-0.5 min-w-0">
                                 {contact?.email && (
-                                  <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-full">
                                     {contact.email}
                                   </span>
                                 )}

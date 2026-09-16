@@ -66,7 +66,8 @@ export const ActivityChecklistSection: React.FC<ActivityChecklistSectionProps> =
               <button
                 type="button"
                 onClick={() => deleteItem.mutate({ id: item.id, activityId })}
-                className="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="p-2 -m-1 sm:p-1 sm:m-0 text-slate-400 hover:text-red-500 sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                aria-label={`Remover item ${item.title}`}
                 title="Remover item"
               >
                 <Trash2 size={14} />

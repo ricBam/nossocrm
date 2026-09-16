@@ -130,13 +130,14 @@ const ActivityCardComponent: React.FC<ActivityCardProps> = ({
           <Clock size={12} />
           {formatRelativeTime(activity.date)}
         </span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onEdit(activity);
             }}
-            className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"
+            aria-label="Editar atividade"
+            className="p-2 sm:p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"
             title="Editar"
           >
             <Edit2 size={14} />
@@ -146,7 +147,8 @@ const ActivityCardComponent: React.FC<ActivityCardProps> = ({
               e.stopPropagation();
               onDelete(activity.id);
             }}
-            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+            aria-label="Excluir atividade"
+            className="p-2 sm:p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
             title="Excluir"
           >
             <Trash2 size={14} />
