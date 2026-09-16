@@ -403,12 +403,12 @@ function ChannelCard({
     <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden">
       {/* Main card content */}
       <div className="p-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
           {/* Icon & Info */}
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 min-w-0">
             <div
               className={cn(
-                'w-10 h-10 rounded-lg flex items-center justify-center',
+                'shrink-0 w-10 h-10 rounded-lg flex items-center justify-center',
                 typeInfo?.color || 'bg-slate-500',
                 'text-white'
               )}
@@ -439,7 +439,7 @@ function ChannelCard({
           {/* Status Badge */}
           <div
             className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+              'shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
               STATUS_COLORS[channel.status]
             )}
           >
@@ -470,8 +470,8 @@ function ChannelCard({
         />
 
         {/* Actions */}
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={onEdit}
               disabled={isLoading}

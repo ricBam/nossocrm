@@ -170,7 +170,7 @@ export function AIOnboarding({ onComplete }: AIOnboardingProps) {
           size="lg"
           onClick={handleContinue}
           disabled={!selectedMode || isPending}
-          className="min-w-[200px]"
+          className="w-full sm:w-auto sm:min-w-[200px]"
         >
           {isPending ? (
             'Configurando...'

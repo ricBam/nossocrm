@@ -17,8 +17,8 @@ export const BucketCard: React.FC<BucketCardProps> = ({ bucket, onDeposit, onWit
 
   return (
     <div className="glass p-5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm flex flex-col gap-3">
-      <div className="flex justify-between items-start">
-        <div>
+      <div className="flex justify-between items-start gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{bucket.name}</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-white font-display">{formatBRL(bucket.balance)}</p>
         </div>

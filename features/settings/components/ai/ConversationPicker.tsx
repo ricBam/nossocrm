@@ -94,8 +94,8 @@ export function ConversationPicker({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h4 className="font-medium text-slate-900 dark:text-white">
             Selecione Conversas de Sucesso
           </h4>

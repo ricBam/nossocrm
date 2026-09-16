@@ -136,9 +136,9 @@ const LancamentosPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">Lançamentos</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">Lançamentos</h1>
+        <div className="flex flex-wrap items-center gap-3">
           <PeriodFilterSelect value={period} onChange={setPeriod} />
           <button
             onClick={() => setIsTransactionModalOpen(true)}
@@ -171,7 +171,8 @@ const LancamentosPage: React.FC = () => {
             ))}
           </select>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm whitespace-nowrap md:whitespace-normal">
           <thead className="bg-slate-50 dark:bg-white/5 text-left text-xs uppercase text-slate-500">
             <tr>
               <th className="px-5 py-3">Data</th>
@@ -203,6 +204,7 @@ const LancamentosPage: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
@@ -213,12 +215,12 @@ const LancamentosPage: React.FC = () => {
         <div className="divide-y divide-slate-100 dark:divide-white/5">
           {recurringRevenue.length === 0 && <p className="p-5 text-sm text-slate-400">Nenhuma receita recorrente ainda.</p>}
           {recurringRevenue.map(r => (
-            <div key={r.id} className="flex items-center justify-between px-5 py-3">
-              <div>
+            <div key={r.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{r.name}</p>
                 <p className="text-xs text-slate-500">{r.category} · todo dia {r.dayOfMonth} · {formatBRL(r.amount)} · a partir de {formatDateBR(r.startsAt)}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 <label className="flex items-center gap-2 text-xs">
                   <input type="checkbox" checked={r.active} onChange={() => handleToggleRecurringRevenue(r.id, r.active)} />
                   Ativa
@@ -233,7 +235,7 @@ const LancamentosPage: React.FC = () => {
       </div>
 
       <div className="glass rounded-xl border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-100 dark:border-white/5 flex justify-between items-center">
+        <div className="p-5 border-b border-slate-100 dark:border-white/5 flex justify-between items-center gap-3">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display">Despesas recorrentes</h2>
           <button onClick={() => setIsRecurringModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg">
             <Plus size={14} /> Nova
@@ -242,12 +244,12 @@ const LancamentosPage: React.FC = () => {
         <div className="divide-y divide-slate-100 dark:divide-white/5">
           {recurring.length === 0 && <p className="p-5 text-sm text-slate-400">Nenhuma despesa recorrente cadastrada.</p>}
           {recurring.map(r => (
-            <div key={r.id} className="flex items-center justify-between px-5 py-3">
-              <div>
+            <div key={r.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{r.name}</p>
                 <p className="text-xs text-slate-500">{r.category} · todo dia {r.dayOfMonth} · {formatBRL(r.amount)}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 <label className="flex items-center gap-2 text-xs">
                   <input type="checkbox" checked={r.active} onChange={() => handleToggleRecurring(r.id, r.active)} />
                   Ativa

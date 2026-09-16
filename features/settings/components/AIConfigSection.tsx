@@ -287,7 +287,7 @@ export const AIConfigSection: React.FC = () => {
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
                         <Bot size={14} /> Provedor de IA
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {(['google', 'openrouter'] as const).map((p) => (
                             <button
                                 key={p}

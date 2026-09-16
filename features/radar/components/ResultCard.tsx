@@ -68,7 +68,7 @@ export function ResultCard({
                         </p>
                     </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex max-w-[50%] shrink-0 flex-wrap items-center justify-end gap-1 md:max-w-none md:flex-nowrap">
                     <Badge variant="secondary" className="tabular-nums">Score {result.score}</Badge>
                     {result.disqualified && <Badge variant="destructive">Desqualificada</Badge>}
                     {result.duplicate.isDuplicate && <Badge variant="secondary">Já está no CRM</Badge>}
@@ -76,11 +76,11 @@ export function ResultCard({
                 </div>
             </div>
 
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs sm:gap-x-4">
                 <div className="flex justify-between"><dt className="text-slate-500">Nota</dt><dd className="tabular-nums">{p.totalScore ?? '—'}</dd></div>
                 <div className="flex justify-between"><dt className="text-slate-500">Avaliações</dt><dd className="tabular-nums">{p.reviewsCount ?? '—'}</dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Telefone</dt><dd className="truncate">{p.phone ?? '—'}</dd></div>
-                <div className="flex justify-between"><dt className="text-slate-500">Site</dt><dd className="truncate">{p.website ? 'sim' : 'não'}</dd></div>
+                <div className="flex min-w-0 justify-between gap-2"><dt className="shrink-0 text-slate-500">Telefone</dt><dd className="min-w-0 truncate">{p.phone ?? '—'}</dd></div>
+                <div className="flex min-w-0 justify-between gap-2"><dt className="shrink-0 text-slate-500">Site</dt><dd className="min-w-0 truncate">{p.website ? 'sim' : 'não'}</dd></div>
             </dl>
 
             <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>

@@ -218,8 +218,8 @@ function AITakeoverSection({
       </div>
 
       {takeoverEnabled && (
-        <div className="mt-4 pl-10">
-          <label className="flex items-center gap-3">
+        <div className="mt-4 sm:pl-10">
+          <label className="flex flex-wrap items-center gap-3">
             <span className="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
               Tempo de inatividade:
             </span>

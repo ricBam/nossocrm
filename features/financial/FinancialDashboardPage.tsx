@@ -93,9 +93,9 @@ const FinancialDashboardPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">Financeiro</h1>
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display tracking-tight">Financeiro</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Receita, despesa e saldo da empresa.</p>
         </div>
         <PeriodFilterSelect value={period} onChange={setPeriod} />
@@ -138,14 +138,14 @@ const FinancialDashboardPage: React.FC = () => {
           {isLoading && <p className="p-5 text-sm text-slate-400">Carregando...</p>}
           {!isLoading && latestEntries.length === 0 && <p className="p-5 text-sm text-slate-400">Nenhum lançamento no período.</p>}
           {latestEntries.map(entry => (
-            <div key={`${entry.source}-${entry.sourceId}`} className="flex items-center justify-between px-5 py-3">
-              <div>
+            <div key={`${entry.source}-${entry.sourceId}`} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{entry.description}</p>
                 <p className="text-xs text-slate-500">
                   {entry.category} · {formatDistanceToNow(new Date(entry.date), { addSuffix: true, locale: ptBR })}
                 </p>
               </div>
-              <span className={entry.type === 'receita' ? 'text-success-text font-bold' : 'text-error-text font-bold'}>
+              <span className={entry.type === 'receita' ? 'shrink-0 text-success-text font-bold' : 'shrink-0 text-error-text font-bold'}>
                 {entry.type === 'receita' ? '+' : '-'}{formatBRL(entry.amount)}
               </span>
             </div>

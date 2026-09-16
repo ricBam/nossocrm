@@ -583,9 +583,9 @@ export const WebhooksSection: React.FC = () => {
 
             {endpoint ? (
               <div className="mt-4 flex flex-col gap-2">
-                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <LinkIcon className="h-4 w-4" />
-                  <span className="font-mono truncate max-w-[520px]">{endpoint.url}</span>
+                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
+                  <LinkIcon className="h-4 w-4 shrink-0" />
+                  <span className="font-mono truncate min-w-0 max-w-full sm:max-w-[520px]">{endpoint.url}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -663,7 +663,7 @@ export const WebhooksSection: React.FC = () => {
         bodyClassName="max-h-[70vh] overflow-auto"
       >
         <div className="space-y-5">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               Conecte em <b>minutos</b>: gere URL/Secret, configure no seu provedor e faça um teste.
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -922,7 +922,7 @@ export const WebhooksSection: React.FC = () => {
                         </details>
                       </>
                     ) : (
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm text-slate-700 dark:text-slate-200">
                           Gere sua URL e Secret para começar.
                         </div>
@@ -940,7 +940,7 @@ export const WebhooksSection: React.FC = () => {
           </div>
 
                   <div className="p-4 rounded-2xl bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="text-xs font-bold text-slate-600 dark:text-slate-300">Seu provedor</div>
                       <div className="inline-flex rounded-xl bg-white dark:bg-white/10 p-1 border border-slate-200 dark:border-white/10">
                         {(

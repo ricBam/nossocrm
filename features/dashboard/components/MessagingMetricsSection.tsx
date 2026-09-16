@@ -225,7 +225,7 @@ export function MessagingMetricsSection({ period }: { period: PeriodFilter }) {
 
   return (
     <div className="space-y-3 shrink-0">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
           <MessageSquare className="text-primary-500" size={20} />
           Performance de Mensagens

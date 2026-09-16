@@ -206,7 +206,7 @@ export function StageAIConfig({ boardId, stages, goalStageId }: StageAIConfigPro
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5 text-primary-500" />
           <h3 className="font-semibold text-slate-900 dark:text-white">AI Agent por Estágio</h3>
@@ -399,7 +399,7 @@ function GeneratePromptsDialog({
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
         <span className="text-xs text-slate-400">
           {description.trim().length < 10
             ? `Mínimo 10 caracteres (${description.trim().length}/10)`
