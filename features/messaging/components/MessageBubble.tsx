@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { memo, useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Check, CheckCheck, Clock, AlertCircle, FileText, MapPin, Play, Pause, Image, Reply } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -216,7 +216,7 @@ const MessageContent = memo(function MessageContent({ message }: { message: Mess
             <img
               src={sanitizeUrl(imageContent.mediaUrl)}
               alt={imageContent.caption || 'Imagem'}
-              className="max-w-[240px] rounded-lg"
+              className="max-w-[min(240px,100%)] md:max-w-[240px] rounded-lg"
             />
           )}
           {imageContent.caption && (
@@ -346,6 +346,22 @@ function EmojiPickerButton({
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  // Keep the floating strip inside the viewport (narrow screens): shift it
+  // horizontally when centering it on the trigger would overflow an edge.
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!open || !strip) return;
+    strip.style.marginLeft = '0px';
+    const EDGE = 8;
+    const rect = strip.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth;
+    let shift = 0;
+    if (rect.left < EDGE) shift = EDGE - rect.left;
+    else if (rect.right > viewportWidth - EDGE) shift = viewportWidth - EDGE - rect.right;
+    if (shift !== 0) strip.style.marginLeft = `${shift}px`;
+  }, [open]);
 
   // Close when clicking outside
   useEffect(() => {
@@ -366,7 +382,7 @@ function EmojiPickerButton({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'w-7 h-7 flex items-center justify-center rounded-full text-base',
+          'w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-full text-base',
           'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300',
           'hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors',
           'opacity-0 group-hover:opacity-100 transition-opacity duration-150',
@@ -379,6 +395,7 @@ function EmojiPickerButton({
       {/* Floating emoji strip */}
       {open && (
         <div
+          ref={stripRef}
           className={cn(
             'absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-30',
             'flex items-center gap-0.5 px-2 py-1.5',
@@ -465,7 +482,7 @@ export const MessageBubble = memo(function MessageBubble({
       )}
     >
       {/* Bubble + reaction pills */}
-      <div className="relative max-w-[70%]">
+      <div className="relative min-w-0 max-w-[80%] md:max-w-[70%]">
         <div
           className={cn(
             'rounded-2xl px-4 py-2 shadow-sm',
@@ -538,7 +555,7 @@ export const MessageBubble = memo(function MessageBubble({
             type="button"
             onClick={() => onReply(message)}
             aria-label="Responder"
-            className="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            className="w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           >
             <Reply className="w-4 h-4" />
           </button>

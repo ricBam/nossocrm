@@ -102,7 +102,7 @@ export const ConversationList = memo(function ConversationList({
             type="button"
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              'relative p-2 rounded-lg transition-colors',
+              'relative p-2.5 md:p-2 rounded-lg transition-colors',
               showFilters || activeFiltersCount > 0
                 ? 'bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400'
                 : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-600 dark:hover:text-white'
@@ -134,7 +134,8 @@ export const ConversationList = memo(function ConversationList({
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-1 md:right-3 top-1/2 -translate-y-1/2 p-2 md:p-0 text-slate-400 hover:text-slate-600"
+              aria-label="Limpar busca"
             >
               <X className="w-4 h-4" />
             </button>
