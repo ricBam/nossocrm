@@ -73,8 +73,8 @@ export const KanbanHeader: React.FC<KanbanHeaderProps> = ({
     onNewDeal
 }) => {
     return (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 md:mb-6 gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap min-w-0">
                 {/* Board Selector */}
                 <BoardSelector
                     boards={boards}
@@ -119,7 +119,7 @@ export const KanbanHeader: React.FC<KanbanHeaderProps> = ({
                                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 p-0" align="start">
+                        <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-0" align="start" collisionPadding={16}>
                             <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50 dark:bg-slate-900/50">
                                 <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                     <Lightbulb size={16} className="text-yellow-500" />
@@ -164,7 +164,7 @@ export const KanbanHeader: React.FC<KanbanHeaderProps> = ({
                 </div>
 
                 <div className="h-8 w-px bg-slate-200 dark:bg-white/10 mx-2 hidden sm:block"></div>
-                <div className="relative flex-1 sm:w-64">
+                <div className="relative flex-1 basis-full sm:basis-auto w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
@@ -174,12 +174,12 @@ export const KanbanHeader: React.FC<KanbanHeaderProps> = ({
                         className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm"
                     />
                 </div>
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-none min-w-0">
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as any)}
                         aria-label="Filtrar por status"
-                        className="pl-3 pr-8 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm appearance-none cursor-pointer"
+                        className="w-full sm:w-auto pl-3 pr-8 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm appearance-none cursor-pointer"
                     >
                         <option value="open">Em Aberto</option>
                         <option value="won">Ganhos</option>
@@ -194,12 +194,12 @@ export const KanbanHeader: React.FC<KanbanHeaderProps> = ({
                     </div>
                 </div>
 
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-none min-w-0">
                     <select
                         value={ownerFilter}
                         onChange={(e) => setOwnerFilter(e.target.value as 'all' | 'mine')}
                         aria-label="Filtrar negócios por proprietário"
-                        className="pl-3 pr-8 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm appearance-none cursor-pointer"
+                        className="w-full sm:w-auto pl-3 pr-8 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-white/5 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:text-white backdrop-blur-sm appearance-none cursor-pointer"
                     >
                         <option value="all">Todos os Donos</option>
                         <option value="mine">Meus Negócios</option>
@@ -208,11 +208,11 @@ export const KanbanHeader: React.FC<KanbanHeaderProps> = ({
                 </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 w-full sm:w-auto">
                 <Button
                     onClick={onNewDeal}
                     size="sm"
-                    className="gap-2 bg-primary-700 hover:bg-primary-600 text-white shadow-lg shadow-primary-700/20"
+                    className="flex-1 sm:flex-none h-10 sm:h-9 gap-2bg-primary-700 hover:bg-primary-600 text-white shadow-lg shadow-primary-700/20"
                 >
                     <Plus size={18} aria-hidden="true" /> Novo Negócio
                 </Button>

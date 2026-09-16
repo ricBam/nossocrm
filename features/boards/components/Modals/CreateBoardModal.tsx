@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useId } from 'react';
-import { Plus, GripVertical, Trash2, ChevronDown, Settings, Copy, Bot } from 'lucide-react';
+import { Plus, GripVertical, Trash2, ChevronDown, ChevronUp, Settings, Copy, Bot } from 'lucide-react';
 import { Board, BoardStage, ContactStage } from '@/types';
 import { BOARD_TEMPLATES, BoardTemplateType } from '@/lib/templates/board-templates';
 import { LifecycleSettingsModal } from '@/features/settings/components/LifecycleSettingsModal';
@@ -241,6 +241,19 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
       const fromIndex = prev.findIndex(s => s.id === fromId);
       const toIndex = prev.findIndex(s => s.id === toId);
       if (fromIndex < 0 || toIndex < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  /** Touch: drag HTML5 não funciona no toque — alternativa por botões subir/descer. */
+  const moveStageBy = (id: string, delta: -1 | 1) => {
+    setStages(prev => {
+      const fromIndex = prev.findIndex(s => s.id === id);
+      const toIndex = fromIndex + delta;
+      if (fromIndex < 0 || toIndex < 0 || toIndex >= prev.length) return prev;
       const next = [...prev];
       const [moved] = next.splice(fromIndex, 1);
       next.splice(toIndex, 0, moved);
@@ -614,11 +627,11 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
 
               {/* Stages */}
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     Etapas do Kanban
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={handleAddStage}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
@@ -674,7 +687,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                       }}
                     >
                       {/* Stage Header */}
-                      <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-2 md:gap-3 mb-3">
                         <button
                           type="button"
                           draggable
@@ -695,7 +708,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                             setDraggingStageId(null);
                             setDragOverStageId(null);
                           }}
-                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing flex-shrink-0"
+                          className="max-md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing flex-shrink-0"
                           aria-label={`Reordenar etapa: ${stage.label}`}
                           title="Arraste para reordenar"
                         >
@@ -721,7 +734,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                           type="text"
                           value={stage.label}
                           onChange={(e) => handleUpdateStage(stage.id, { label: e.target.value })}
-                          className="flex-1 px-3 py-2 text-base font-medium rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="flex-1 min-w-0 px-3 py-2 text-base font-medium rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           placeholder="Nome da etapa"
                         />
 
@@ -737,7 +750,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                       </div>
 
                       {/* Lifecycle Automation */}
-                      <div className="pl-9">
+                      <div className="md:pl-9">
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
                           Promove contato para:
                         </label>
@@ -759,6 +772,28 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                           />
                         </div>
+                      </div>
+
+                      {/* Reordenação por toque (mobile / ponteiro grosso) */}
+                      <div className="hidden max-md:flex pointer-coarse:flex items-center justify-end gap-2 mt-3">
+                        <button
+                          type="button"
+                          onClick={() => moveStageBy(stage.id, -1)}
+                          disabled={index === 0}
+                          className="inline-flex items-center gap-1 min-h-9 px-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-xs font-medium text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed focus-visible-ring"
+                          aria-label={`Mover etapa ${stage.label} para cima`}
+                        >
+                          <ChevronUp size={16} aria-hidden="true" /> Subir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveStageBy(stage.id, 1)}
+                          disabled={index === stages.length - 1}
+                          className="inline-flex items-center gap-1 min-h-9 px-3 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-xs font-medium text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed focus-visible-ring"
+                          aria-label={`Mover etapa ${stage.label} para baixo`}
+                        >
+                          <ChevronDown size={16} aria-hidden="true" /> Descer
+                        </button>
                       </div>
                     </div>
                   ))}

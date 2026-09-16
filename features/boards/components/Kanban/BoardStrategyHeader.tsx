@@ -34,6 +34,12 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
   const { setIsGlobalAIOpen } = useUIState();
   const [isEditing, setIsEditing] = useState(false);
   const [editedBoard, setEditedBoard] = useState(board);
+  // Mobile: a estratégia começa recolhida para o quadro ficar visível sem rolar muito.
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  // Detalhes (meta/agente/entrada): no desktop abrem no hover; no toque abrem por clique.
+  const [openDetail, setOpenDetail] = useState<'goal' | 'agent' | 'trigger' | null>(null);
+  const toggleDetail = (detail: 'goal' | 'agent' | 'trigger') =>
+    setOpenDetail(current => (current === detail ? null : detail));
 
   // Calculate Progress Automatically
   const calculatedProgress = React.useMemo(() => {
@@ -107,7 +113,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
             <Target size={16} className="text-primary-500" />
           </div>
           <span className="font-medium text-sm">
-            Definir Estratégia do Board (Meta, Agente e Gatilhos)
+            Definir Estratégia do Board<span className="hidden sm:inline"> (Meta, Agente e Gatilhos)</span>
           </span>
         </button>
       </div>
@@ -137,16 +143,22 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
       {/* Background Glow Effect (Subtle) */}
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-orange-500/5 rounded-xl blur-xl opacity-50 group-hover/header:opacity-100 transition-opacity duration-700"></div>
 
-      <div className="relative px-5 py-3 bg-white dark:bg-[#0B1120] rounded-lg border border-slate-100 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md">
-        {/* Edit Button - Only visible on hover */}
+      <div className="relative px-4 py-2.5 md:px-5 md:py-3 bg-white dark:bg-[#0B1120] rounded-lg border border-slate-100 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-md">
+        {/* Edit Button - Only visible on hover (desktop); sempre visível no mobile/toque */}
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-full transition-all opacity-0 group-hover/header:opacity-100"
+            className="absolute top-1 right-1 md:top-2 md:right-2 z-10 p-3 md:p-1.5 text-slate-400 md:text-slate-300 hover:text-white hover:bg-slate-800 rounded-full transition-all opacity-0 group-hover/header:opacity-100 max-md:opacity-100 focus-visible:opacity-100"
             title="Editar Estratégia"
+            aria-label="Editar Estratégia"
           >
             <Edit2 size={12} />
           </button>
+        )}
+
+        {/* Backdrop invisível: fecha o detalhe aberto por toque ao tocar fora */}
+        {openDetail && (
+          <div className="fixed inset-0 z-[90]" aria-hidden="true" onClick={() => setOpenDetail(null)} />
         )}
 
         {isEditing ? (
@@ -155,7 +167,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
           // --- EDIT MODE (Polished & Unified) ---
           <div className="animate-in fade-in zoom-in-95 duration-300">
             {/* Header Actions */}
-            <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-white/5 pb-4">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-6 border-b border-slate-100 dark:border-white/5 pb-4">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-slate-100 dark:bg-white/10 rounded-lg">
                   <Target size={16} className="text-slate-600 dark:text-slate-300" />
@@ -198,7 +210,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                     value={editedBoard.entryTrigger || ''}
                     onChange={e => setEditedBoard({ ...editedBoard, entryTrigger: e.target.value })}
                   />
-                  <div className="absolute bottom-3 right-3 text-[10px] text-slate-400 bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
+                  <div className="hidden sm:block absolute bottom-3 right-3 text-[10px] text-slate-400 bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full backdrop-blur-sm">
                     A IA usará isso para filtrar leads
                   </div>
                 </div>
@@ -207,17 +219,17 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
               {/* BOTTOM SECTION: GOAL & AGENT (Side by Side) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* LEFT: GOAL (All Goal fields) */}
-                <div className="space-y-4 border-r border-slate-100 dark:border-white/5 pr-8">
+                <div className="space-y-4 md:border-r border-slate-100 dark:border-white/5 md:pr-8">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5 border-b border-slate-100 dark:border-white/5 pb-2">
                     <Target size={12} /> Objetivo (O Alvo)
                   </label>
 
                   {/* KPI Inputs */}
-                  <div className="flex gap-4">
-                    <div className="flex-1 bg-slate-50 dark:bg-white/5 rounded-xl p-3 border border-slate-200 dark:border-white/5 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                  <div className="flex gap-3 md:gap-4">
+                    <div className="flex-1 min-w-0 bg-slate-50 dark:bg-white/5 rounded-xl p-3 border border-slate-200 dark:border-white/5 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
                       <div className="flex items-center gap-2 mb-1">
                         <input
-                          className="flex-1 bg-transparent text-xl font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-700 focus:outline-none"
+                          className="flex-1 min-w-0 bg-transparent text-xl font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-700 focus:outline-none"
                           placeholder="0"
                           value={editedBoard.goal?.targetValue || ''}
                           onChange={e =>
@@ -257,7 +269,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                         }
                       />
                     </div>
-                    <div className="w-24 opacity-50 pointer-events-none grayscale">
+                    <div className="w-20 md:w-24 shrink-0 opacity-50 pointer-events-none grayscale">
                       <label className="text-[10px] text-slate-400 font-medium block mb-1">
                         Progresso (Auto)
                       </label>
@@ -285,13 +297,13 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                 </div>
 
                 {/* RIGHT: AGENT (All Agent fields) */}
-                <div className="space-y-4 pl-2">
+                <div className="space-y-4 md:pl-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5 border-b border-slate-100 dark:border-white/5 pb-2">
                     <Bot size={12} /> Agente (O Executor)
                   </label>
 
                   {/* Agent Identity */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] text-slate-400 font-medium">Nome</label>
                       <input
@@ -341,9 +353,38 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
         ) : (
           // --- VIEW MODE (Compact & Premium) ---
           <>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            {/* Mobile: resumo recolhido (toque para expandir). Desktop: oculto. */}
+            <button
+              type="button"
+              onClick={() => setIsMobileExpanded(v => !v)}
+              aria-expanded={isMobileExpanded}
+              aria-controls={`board-strategy-${board.id}`}
+              className={`md:hidden w-full flex items-center gap-3 min-h-10 pr-10 text-left ${isMobileExpanded ? 'mb-3' : ''}`}
+            >
+              <Target size={14} className="text-blue-500 shrink-0" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                  Estratégia do Board
+                </span>
+                <span className="block text-sm font-bold text-slate-900 dark:text-white truncate">
+                  {board.goal?.targetValue
+                    ? `${board.goal.targetValue} · ${calculatedProgress.display} concluído`
+                    : board.agentPersona?.name || 'Ver meta, agente e entrada'}
+                </span>
+              </div>
+              <ChevronRight
+                size={16}
+                aria-hidden="true"
+                className={`text-slate-400 shrink-0 transition-transform ${isMobileExpanded ? 'rotate-90' : ''}`}
+              />
+            </button>
+
+            <div
+              id={`board-strategy-${board.id}`}
+              className={`${isMobileExpanded ? 'grid' : 'hidden'} md:grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 items-center`}
+            >
               {/* GOAL (Hero Section) - Spans 4 cols */}
-              <div className="md:col-span-4 flex flex-col justify-center border-r border-slate-100 dark:border-white/5 pr-6 relative">
+              <div className="md:col-span-4 flex flex-col justify-center border-b pb-4 md:pb-0 md:border-b-0 md:border-r border-slate-100 dark:border-white/5 md:pr-6 relative">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                   <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
@@ -369,12 +410,18 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                 </div>
                 <div className="flex justify-between text-[9px] font-medium text-slate-400 uppercase tracking-wider">
                   <span>{calculatedProgress.display} Concluído</span>
-                  <div className="group/goal relative cursor-help">
-                    <span className="border-b border-dotted border-slate-600 hover:text-blue-400 transition-colors">
+                  {/* md:relative — no mobile o detalhe ancora na seção inteira (largura útil) */}
+                  <div className="group/goal md:relative cursor-help">
+                    <button
+                      type="button"
+                      onClick={() => toggleDetail('goal')}
+                      aria-expanded={openDetail === 'goal'}
+                      className="uppercase tracking-wider border-b border-dotted border-slate-600 hover:text-blue-400 transition-colors max-md:py-2 max-md:-my-2 cursor-help"
+                    >
                       Detalhes
-                    </span>
+                    </button>
                     {/* Tooltip for Goal Description */}
-                    <div className="absolute left-0 top-full mt-2 hidden group-hover/goal:block w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto">
+                    <div className={`absolute left-0 right-0 md:right-auto top-full mt-2 ${openDetail === 'goal' ? 'block' : 'hidden'} group-hover/goal:block w-auto md:w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto`}>
                       {board.goal?.description}
                     </div>
                   </div>
@@ -382,7 +429,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
               </div>
 
               {/* AGENT - Spans 3 cols */}
-              <div className="md:col-span-3 flex flex-col justify-center px-4 border-r border-slate-100 dark:border-white/5 relative">
+              <div className="md:col-span-3 flex flex-col justify-center md:px-4 border-b pb-4 md:pb-0 md:border-b-0 md:border-r border-slate-100 dark:border-white/5 relative">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <Bot size={12} className="text-purple-500" />
@@ -393,14 +440,27 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                   {board.agentPersona && (
                     <button
                       onClick={() => setIsGlobalAIOpen(true)}
-                      className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
+                      className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 px-2 py-0.5 max-md:py-2 max-md:-my-1.5 rounded flex items-center gap-1 transition-colors"
                     >
                       <MessageSquare size={12} /> Falar
                     </button>
                   )}
                 </div>
 
-                <div className="group/agent relative">
+                <div
+                  className="group/agent md:relative"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={openDetail === 'agent'}
+                  aria-label={`Ver comportamento do agente ${board.agentPersona?.name ?? ''}`.trim()}
+                  onClick={() => toggleDetail('agent')}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleDetail('agent');
+                    }
+                  }}
+                >
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-0.5 group-hover/agent:text-purple-400 transition-colors cursor-default truncate">
                     {board.agentPersona?.name}
                   </h3>
@@ -409,7 +469,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                   </p>
 
                   {/* Tooltip for Agent Behavior */}
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover/agent:block w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto">
+                  <div className={`absolute left-0 right-0 md:right-auto md:left-1/2 md:-translate-x-1/2 top-full mt-2 ${openDetail === 'agent' ? 'block' : 'hidden'} group-hover/agent:block w-auto md:w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto`}>
                     <p className="font-semibold text-purple-300 mb-1">Comportamento</p>"
                     {board.agentPersona?.behavior}"
                   </div>
@@ -417,7 +477,7 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
               </div>
 
               {/* TRIGGER - Spans 5 cols */}
-              <div className="md:col-span-5 flex flex-col justify-center pl-4 relative">
+              <div className="md:col-span-5 flex flex-col justify-center md:pl-4 relative">
                 <div className="flex items-center gap-2 mb-1">
                   <DoorOpen size={12} className="text-orange-500" />
                   <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
@@ -425,12 +485,25 @@ export const BoardStrategyHeader: React.FC<BoardStrategyHeaderProps> = ({ board 
                   </span>
                 </div>
 
-                <div className="group/trigger relative cursor-help">
+                <div
+                  className="group/trigger md:relative cursor-help"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={openDetail === 'trigger'}
+                  aria-label="Ver regras de entrada completas"
+                  onClick={() => toggleDetail('trigger')}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleDetail('trigger');
+                    }
+                  }}
+                >
                   <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
                     {board.entryTrigger}
                   </p>
                   {/* Tooltip for Full Trigger */}
-                  <div className="absolute right-0 top-full mt-2 hidden group-hover/trigger:block w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto">
+                  <div className={`absolute left-0 right-0 md:left-auto top-full mt-2 ${openDetail === 'trigger' ? 'block' : 'hidden'} group-hover/trigger:block w-auto md:w-80 p-4 bg-slate-900 text-slate-300 text-xs rounded-lg shadow-2xl z-[100] border border-slate-700 max-h-64 overflow-y-auto`}>
                     {board.entryTrigger}
                   </div>
                 </div>

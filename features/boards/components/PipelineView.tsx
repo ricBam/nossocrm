@@ -262,7 +262,10 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col">
+    // Mobile: o bloco de cabeçalhos (KanbanHeader + BoardStrategyHeader) quebra em várias linhas.
+    // Com `h-full` + `flex-1` o quadro ficava só com a sobra (~200px). Abaixo de `md` o container
+    // cresce com o conteúdo (o <main> rola) e o quadro ganha altura própria de viewport.
+    <div className="min-h-full md:h-full flex flex-col">
       {boardCreateOverlay && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
@@ -330,7 +333,8 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
 
           <BoardStrategyHeader board={activeBoard} />
 
-          <div className="flex-1 overflow-hidden">
+          {/* Mobile: altura = área visível do <main> (viewport - header h-14 - bottom nav - padding p-4). */}
+          <div className="shrink-0 overflow-hidden h-[calc(100dvh-3.5rem-var(--app-safe-area-top,0px)-var(--app-bottom-nav-height,0px)-var(--app-safe-area-bottom,0px)-2rem)] min-h-[22rem] md:h-auto md:min-h-0 md:shrink md:flex-1">
             {viewMode === 'kanban' ? (
               <KanbanBoard
                 stages={activeBoard.stages}

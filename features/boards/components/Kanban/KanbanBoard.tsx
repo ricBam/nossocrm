@@ -188,7 +188,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   }, [onMoveDealToStage]);
 
   return (
-    <div role="list" aria-label="Colunas do pipeline" className="flex gap-4 h-full overflow-x-auto pb-2 w-full">
+    <div role="list" aria-label="Colunas do pipeline" className="flex gap-3 md:gap-4 h-full overflow-x-auto pb-2 w-full snap-x snap-mandatory md:snap-none overscroll-x-contain">
       {stages.map(stage => {
         const stageDeals = dealsByStageId.map.get(stage.id) ?? [];
         const stageValue = dealsByStageId.totals.get(stage.id) ?? 0;
@@ -215,7 +215,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             }}
             onDragEnter={() => setDragOverStage(stage.id)}
             onDragLeave={() => setDragOverStage(null)}
-            className={`min-w-[20rem] flex-1 flex flex-col rounded-xl border-2 overflow-visible h-full max-h-full transition-all duration-200
+            className={`min-w-[85vw] sm:min-w-[20rem] snap-start flex-1 flex flex-col rounded-xl border-2 overflow-visible h-full max-h-full transition-all duration-200
                             ${isOver
                 ? `${dropHighlightClasses(stage.color)} scale-[1.02]`
                 : 'border-slate-200/50 dark:border-white/10 glass'
